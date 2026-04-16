@@ -4,6 +4,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { Link } from 'react-router-dom';
 import { resolveBackendAssetUrl } from '../services/api';
+import { getProviderProfilePath } from '../services/providers';
 
 function svgMedicalCross() {
 	// SVG simple y nítido (sin assets externos).
@@ -100,7 +101,7 @@ export function ProvidersMap({ center, markers, selectedProviderId, onSelectProv
 								<p>
 									{provider.rating != null ? `${provider.rating.toFixed(1)} (${provider.ratingCount || 0})` : 'Sin calificaciones'}
 								</p>
-								<Link to={`/proveedores/${provider.id}`}>
+								<Link to={getProviderProfilePath(provider)}>
 									Ver perfil
 								</Link>
 							</div>

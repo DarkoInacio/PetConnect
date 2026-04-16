@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchProvidersMapData } from '../services/providers';
+import { fetchProvidersMapData, getProviderProfilePath } from '../services/providers';
 import { ProvidersMap } from '../components/ProvidersMap';
 
 const DEFAULT_CENTER = { lat: -33.4489, lng: -70.6693 };
@@ -161,7 +161,7 @@ export function ProvidersMapPage() {
 						})}
 					</ul>
 					{selectedProvider ? (
-						<Link className='profile-link' to={`/proveedores/${selectedProvider.id}`}>
+						<Link className='profile-link' to={getProviderProfilePath(selectedProvider)}>
 							Ver perfil seleccionado
 						</Link>
 					) : null}
