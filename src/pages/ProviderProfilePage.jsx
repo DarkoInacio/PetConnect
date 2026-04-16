@@ -24,6 +24,19 @@ function formatReferenceRate(referenceRate) {
 	return `Desde ${referenceRate.amount} ${currency}${unit}`;
 }
 
+function ctaByProviderType(providerType) {
+	if (providerType === 'paseador' || providerType === 'cuidador') {
+		return {
+			label: 'Solicitar servicio',
+			hrefBase: '/solicitar-servicio'
+		};
+	}
+	return {
+		label: 'Agendar cita',
+		hrefBase: '/agendar'
+	};
+}
+
 export function ProviderProfilePage() {
 	const { id } = useParams();
 	const [provider, setProvider] = useState(null);
@@ -90,6 +103,8 @@ export function ProviderProfilePage() {
 				`${coordinates.lat},${coordinates.lng}`
 		  )}`
 		: null;
+	const cta = ctaByProviderType(provider.providerType);
+	const ctaHref = `${cta.hrefBase}?providerId=${provider.id}`;
 
 	return (
 		<div className='page profile-page'>
@@ -217,13 +232,13 @@ export function ProviderProfilePage() {
 				<div className='profile-cta-desktop'>
 					<a
 						className={`book-btn ${isTemporarilyClosed ? 'disabled' : ''}`}
-						href={isTemporarilyClosed ? '#' : `/agendar?providerId=${provider.id}`}
+						href={isTemporarilyClosed ? '#' : ctaHref}
 						aria-disabled={isTemporarilyClosed}
 						onClick={(e) => {
 							if (isTemporarilyClosed) e.preventDefault();
 						}}
 					>
-						Agendar cita
+						{cta.label}
 					</a>
 					{isTemporarilyClosed ? (
 						<p className='closed-note'>Este proveedor está temporalmente cerrado. No es posible agendar por ahora.</p>
@@ -234,13 +249,13 @@ export function ProviderProfilePage() {
 			<div className='profile-cta-sticky-mobile'>
 				<a
 					className={`book-btn ${isTemporarilyClosed ? 'disabled' : ''}`}
-					href={isTemporarilyClosed ? '#' : `/agendar?providerId=${provider.id}`}
+					href={isTemporarilyClosed ? '#' : ctaHref}
 					aria-disabled={isTemporarilyClosed}
 					onClick={(e) => {
 						if (isTemporarilyClosed) e.preventDefault();
 					}}
 				>
-					Agendar cita
+					{cta.label}
 				</a>
 			</div>
 		</div>
