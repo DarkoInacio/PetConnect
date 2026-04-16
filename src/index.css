@@ -1,0 +1,14 @@
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+	background: #f4f7fb;
+	color: #1d2634;
+}
+
+#root {
+	min-height: 100vh;
+}
