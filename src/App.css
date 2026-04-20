@@ -934,3 +934,125 @@
 		width: 100%;
 	}
 }
+
+/* Mascotas, explorar, admin jobs */
+.pets-list {
+	list-style: none;
+	padding: 0;
+	margin: 16px 0 0;
+}
+.pets-list-item {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	margin-bottom: 16px;
+}
+.pet-photo-thumb {
+	width: 64px;
+	height: 64px;
+	object-fit: cover;
+	border-radius: 8px;
+	border: 1px solid #e5e7eb;
+}
+.pet-detail-head {
+	display: flex;
+	gap: 16px;
+	align-items: flex-start;
+	margin: 16px 0;
+}
+.pet-detail-photo {
+	width: 120px;
+	height: 120px;
+	object-fit: cover;
+	border-radius: 12px;
+	border: 1px solid #e5e7eb;
+}
+.pets-list-actions a {
+	margin-right: 8px;
+}
+.explore-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: flex-end;
+	margin: 16px 0;
+}
+.explore-filters label {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 0.9rem;
+}
+.explore-results {
+	list-style: none;
+	padding: 0;
+	margin: 16px 0 0;
+}
+.explore-card {
+	display: flex;
+	gap: 12px;
+	margin-bottom: 12px;
+	border: 1px solid #e5e7eb;
+	padding: 12px;
+	border-radius: 10px;
+	background: #fff;
+}
+.explore-thumb {
+	width: 48px;
+	height: 48px;
+	object-fit: cover;
+	border-radius: 8px;
+}
+.link-like {
+	background: none;
+	border: none;
+	color: #2563eb;
+	cursor: pointer;
+	text-decoration: underline;
+	padding: 0;
+	font: inherit;
+}
+.owner-profile-img {
+	max-height: 140px;
+	border-radius: 10px;
+	border: 1px solid #e5e7eb;
+}
+.encounters-list {
+	margin: 8px 0 0;
+	padding-left: 18px;
+}
+.citas-legacy-list {
+	list-style: none;
+	padding: 0;
+}
+.citas-legacy-list li {
+	margin-bottom: 10px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid #eef2f7;
+}
+.slot-admin-list li {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 8px;
+}
+.owner-booking-actions .btn-sm,
+.provider-booking-actions .btn-sm {
+	margin-right: 6px;
+	margin-bottom: 4px;
+}
+.provider-booking-actions a.btn-sm {
+	display: inline-block;
+	padding: 4px 10px;
+	border-radius: 8px;
+	border: 1px solid #cbd5e1;
+	text-decoration: none;
+	color: #0f172a;
+	font-size: 0.85rem;
+}
+.admin-jobs {
+	margin-bottom: 24px;
+	padding: 12px 0;
+	border-bottom: 1px solid #e5e7eb;
+}

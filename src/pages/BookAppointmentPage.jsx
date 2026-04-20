@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { createSlotAppointment, fetchAvailableSlots } from '../services/appointments';
 import { createLegacyCita } from '../services/citas';
 import { fetchProviderPublicProfile, getProviderProfilePath } from '../services/providers';
+import { listPets } from '../services/pets';
 
 function toYmdLocal(d) {
 	const pad = (n) => String(n).padStart(2, '0');
@@ -22,6 +23,8 @@ export function BookAppointmentPage() {
 	const [slotsLoading, setSlotsLoading] = useState(false);
 	const [selectedSlotId, setSelectedSlotId] = useState('');
 
+	const [myPets, setMyPets] = useState([]);
+	const [selectedPetId, setSelectedPetId] = useState('');
 	const [petNombre, setPetNombre] = useState('');
 	const [petEspecie, setPetEspecie] = useState('perro');
 	const [servicio, setServicio] = useState('Consulta');
@@ -60,6 +63,20 @@ export function BookAppointmentPage() {
 		})();
 		return () => c.abort();
 	}, [providerId]);
+
+	useEffect(() => {
+		if (!providerId || !user || user.role !== 'dueno') return;
+		const c = new AbortController();
+		(async () => {
+			try {
+				const data = await listPets({ forAgenda: true }, c.signal);
+				setMyPets(Array.isArray(data.pets) ? data.pets : []);
+			} catch {
+				setMyPets([]);
+			}
+		})();
+		return () => c.abort();
+	}, [providerId, user]);
 
 	const loadSlots = useCallback(async () => {
 		if (!providerId || !dateYmd) return;
@@ -130,12 +147,16 @@ export function BookAppointmentPage() {
 			setFormError('Selecciona un horario disponible.');
 			return;
 		}
+		if (!selectedPetId) {
+			setFormError('Selecciona una mascota registrada (el backend exige petId para reservar un bloque).');
+			return;
+		}
 		setSubmitting(true);
 		try {
 			await createSlotAppointment({
 				providerId,
 				slotId: selectedSlotId,
-				pet: { name: petNombre.trim(), species: petEspecie.trim() },
+				petId: selectedPetId,
 				reason: servicio.trim()
 			});
 			setFormOk('Cita agendada. Revisa «Mis reservas».');
@@ -151,6 +172,10 @@ export function BookAppointmentPage() {
 		e.preventDefault();
 		setFormError('');
 		setFormOk('');
+		if (!petNombre.trim() || !petEspecie.trim()) {
+			setFormError('Indica nombre y especie de la mascota (o elige una registrada).');
+			return;
+		}
 		setSubmitting(true);
 		try {
 			await createLegacyCita({
@@ -165,6 +190,15 @@ export function BookAppointmentPage() {
 			setFormError(err.response?.data?.message || 'No se pudo crear la cita.');
 		} finally {
 			setSubmitting(false);
+		}
+	}
+
+	function onSelectRegisteredPet(id) {
+		setSelectedPetId(id);
+		const p = myPets.find((x) => String(x._id) === id);
+		if (p) {
+			setPetNombre(p.name || '');
+			setPetEspecie(p.species || 'perro');
 		}
 	}
 
@@ -217,12 +251,30 @@ export function BookAppointmentPage() {
 
 			<section className='edit-fieldset book-section'>
 				<h2 className='book-section-title'>Datos de la mascota y servicio</h2>
+				{myPets.length > 0 ? (
+					<label className='edit-field'>
+						<span>Mascota registrada</span>
+						<select value={selectedPetId} onChange={(e) => onSelectRegisteredPet(e.target.value)} required>
+							<option value=''>Selecciona…</option>
+							{myPets.map((p) => (
+								<option key={String(p._id)} value={String(p._id)}>
+									{p.name} ({p.species})
+								</option>
+							))}
+						</select>
+					</label>
+				) : (
+					<p className='warn-banner'>
+						No tienes mascotas activas registradas.{' '}
+						<Link to='/mascotas/nueva'>Crea una ficha</Link> para poder reservar un bloque de agenda.
+					</p>
+				)}
 				<label className='edit-field'>
 					<span>Nombre mascota</span>
 					<input value={petNombre} onChange={(e) => setPetNombre(e.target.value)} required />
 				</label>
 				<label className='edit-field'>
-					<span>Especie</span>
+					<span>Especie (valor interno: perro, gato, etc.)</span>
 					<input value={petEspecie} onChange={(e) => setPetEspecie(e.target.value)} required />
 				</label>
 				<label className='edit-field'>
@@ -268,7 +320,11 @@ export function BookAppointmentPage() {
 						</ul>
 					) : null}
 					<form onSubmit={onSubmitSlot}>
-						<button type='submit' className='save-profile-btn' disabled={submitting || !selectedSlotId}>
+						<button
+							type='submit'
+							className='save-profile-btn'
+							disabled={submitting || !selectedSlotId || myPets.length === 0 || !selectedPetId}
+						>
 							{submitting ? 'Reservando…' : 'Confirmar horario seleccionado'}
 						</button>
 					</form>

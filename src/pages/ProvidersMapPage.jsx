@@ -95,7 +95,10 @@ export function ProvidersMapPage() {
 		<div className='page'>
 			<header className='header'>
 				<h1>PetConnect - Mapa de proveedores</h1>
-				<p>Encuentra servicios cercanos y revisa su perfil rápidamente.</p>
+				<p>
+					Encuentra servicios cercanos y revisa su perfil rápidamente. También puedes{' '}
+					<Link to='/explorar'>explorar con filtros (lista)</Link>.
+				</p>
 			</header>
 
 			<section className='filters'>

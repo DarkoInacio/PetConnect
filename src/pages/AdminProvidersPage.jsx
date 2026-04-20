@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { approveProvider, fetchPendingProviders, rejectProvider } from '../services/admin';
+import { runReminders24h } from '../services/adminJobs';
 
 export function AdminProvidersPage() {
 	const { user, loading: authLoading } = useAuth();
@@ -9,6 +10,7 @@ export function AdminProvidersPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [actionMsg, setActionMsg] = useState('');
+	const [jobLoading, setJobLoading] = useState(false);
 
 	const reload = useCallback(async () => {
 		const res = await fetchPendingProviders({ page: 1, limit: 50 });
@@ -70,6 +72,19 @@ export function AdminProvidersPage() {
 		}
 	}
 
+	async function onRunReminders() {
+		setJobLoading(true);
+		setActionMsg('');
+		try {
+			const res = await runReminders24h();
+			setActionMsg(res.message || 'Recordatorios ejecutados.');
+		} catch (err) {
+			setActionMsg(err.response?.data?.message || 'No se pudo ejecutar el job.');
+		} finally {
+			setJobLoading(false);
+		}
+	}
+
 	async function onReject(id) {
 		const reason = window.prompt('Motivo del rechazo (obligatorio):');
 		if (!reason || !reason.trim()) return;
@@ -89,6 +104,13 @@ export function AdminProvidersPage() {
 				Inicio
 			</Link>
 			<h1>Proveedores en revisión</h1>
+			<section className='admin-jobs'>
+				<h2>Tareas administrativas</h2>
+				<p className='muted'>POST /api/admin/jobs/reminders24h/run</p>
+				<button type='button' className='save-profile-btn' disabled={jobLoading} onClick={onRunReminders}>
+					{jobLoading ? 'Ejecutando…' : 'Ejecutar recordatorios 24h (manual)'}
+				</button>
+			</section>
 			{loading ? <p>Cargando…</p> : null}
 			{error ? <p className='error'>{error}</p> : null}
 			{actionMsg ? <p className='review-success'>{actionMsg}</p> : null}

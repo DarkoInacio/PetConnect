@@ -13,6 +13,18 @@ export async function createSlotAppointment(payload) {
 	return data;
 }
 
+export async function fetchMyAppointments(signal) {
+	const { data } = await api.get('/appointments/mine', { signal });
+	return data;
+}
+
+export async function cancelMyAppointment(appointmentId, cancellationReason) {
+	const { data } = await api.patch(`/appointments/${appointmentId}/cancel`, {
+		cancellationReason
+	});
+	return data;
+}
+
 export async function confirmAppointmentAsProvider(appointmentId) {
 	const { data } = await api.patch(`/appointments/${appointmentId}/provider/confirm`);
 	return data;

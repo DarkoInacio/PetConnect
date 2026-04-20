@@ -6,9 +6,15 @@ import {
 	cancelAppointmentAsProvider,
 	completeWalkerAppointmentAsProvider
 } from '../services/appointments';
-import { deleteAgendaSlot, generateAgendaSlots, listMyAgendaSlots } from '../services/agenda';
+import {
+	blockAgendaSlot,
+	deleteAgendaSlot,
+	generateAgendaSlots,
+	listMyAgendaSlots,
+	unblockAgendaSlot
+} from '../services/agenda';
 import { fetchProviderBookings } from '../services/bookings';
-import { cancelCitaAsProvider, confirmCitaAsProvider } from '../services/citas';
+import { cancelCitaAsProvider, confirmCitaAsProvider, recordCitaDiagnostico } from '../services/citas';
 
 const APPOINTMENT_STATUS_LABELS = {
 	pending_confirmation: 'Pendiente de confirmación',
@@ -156,6 +162,39 @@ export function ProviderDashboardPage() {
 		}
 	}
 
+	async function onBlockSlot(id) {
+		try {
+			await blockAgendaSlot(id);
+			const s = await listMyAgendaSlots();
+			setSlots(Array.isArray(s.slots) ? s.slots : []);
+		} catch (err) {
+			setAgendaMsg(err.response?.data?.message || 'No se pudo bloquear.');
+		}
+	}
+
+	async function onUnblockSlot(id) {
+		try {
+			await unblockAgendaSlot(id);
+			const s = await listMyAgendaSlots();
+			setSlots(Array.isArray(s.slots) ? s.slots : []);
+		} catch (err) {
+			setAgendaMsg(err.response?.data?.message || 'No se pudo desbloquear.');
+		}
+	}
+
+	async function onDiagnosticoCita(row) {
+		const text = window.prompt('Registrar diagnóstico y completar cita (obligatorio):');
+		if (!text || !text.trim()) return;
+		setBookingActionErr('');
+		try {
+			await recordCitaDiagnostico(String(row.id), text.trim());
+			setBookingActionMsg('Diagnóstico guardado.');
+			await reloadBookings();
+		} catch (err) {
+			setBookingActionErr(err.response?.data?.message || 'No se pudo guardar.');
+		}
+	}
+
 	async function onConfirmBooking(row) {
 		setBookingActionMsg('');
 		setBookingActionErr('');
@@ -228,7 +267,25 @@ export function ProviderDashboardPage() {
 		return ['pending_confirmation', 'confirmed'].includes(row.status);
 	}
 
+	function canRecordDiagnostico(row) {
+		return row.kind === 'cita_legacy' && row.status === 'confirmada';
+	}
+
+	function petIdString(row) {
+		const p = row.petId;
+		if (!p) return '';
+		if (typeof p === 'object' && p._id) return String(p._id);
+		return String(p);
+	}
+
 	const isVet = user.providerType === 'veterinaria';
+
+	function canRegisterClinical(row) {
+		if (!isVet) return false;
+		if (row.kind !== 'appointment') return false;
+		if (!petIdString(row)) return false;
+		return ['confirmed', 'completed'].includes(row.status);
+	}
 
 	return (
 		<div className='page provider-dashboard'>
@@ -294,6 +351,9 @@ export function ProviderDashboardPage() {
 									const showConfirm = canConfirm(row);
 									const showCancel = canCancel(row);
 									const showCompleteWalker = canCompleteWalker(row);
+									const showDiagnostico = canRecordDiagnostico(row);
+									const showClinical = canRegisterClinical(row);
+									const pid = petIdString(row);
 									return (
 										<tr key={`${row.kind}-${row.id}`}>
 											<td>{formatRange(row.startAt, row.endAt)}</td>
@@ -321,7 +381,20 @@ export function ProviderDashboardPage() {
 														Completar
 													</button>
 												) : null}
-												{!showConfirm && !showCancel && !showCompleteWalker ? (
+												{showDiagnostico ? (
+													<button type='button' className='btn-sm' onClick={() => onDiagnosticoCita(row)}>
+														Diagnóstico
+													</button>
+												) : null}
+												{showClinical ? (
+													<Link
+														className='btn-sm'
+														to={`/proveedor/atencion-clinica?appointmentId=${encodeURIComponent(String(row.id))}&petId=${encodeURIComponent(pid)}`}
+													>
+														Atención clínica
+													</Link>
+												) : null}
+												{!showConfirm && !showCancel && !showCompleteWalker && !showDiagnostico && !showClinical ? (
 													<span className='muted'>—</span>
 												) : null}
 											</td>
@@ -362,8 +435,19 @@ export function ProviderDashboardPage() {
 							<li key={String(s._id)}>
 								<span>
 									{new Date(s.startAt).toLocaleString('es-CL')} —{' '}
-									{new Date(s.endAt).toLocaleTimeString('es-CL', { timeStyle: 'short' })}
+									{new Date(s.endAt).toLocaleTimeString('es-CL', { timeStyle: 'short' })}{' '}
+									<small className='muted'>({s.status || '—'})</small>
 								</span>
+								{s.status === 'available' ? (
+									<button type='button' className='btn-sm' onClick={() => onBlockSlot(s._id)}>
+										Bloquear
+									</button>
+								) : null}
+								{s.status === 'blocked' ? (
+									<button type='button' className='btn-sm' onClick={() => onUnblockSlot(s._id)}>
+										Desbloquear
+									</button>
+								) : null}
 								<button type='button' className='btn-reject' onClick={() => onDeleteSlot(s._id)}>
 									Eliminar
 								</button>

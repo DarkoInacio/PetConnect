@@ -62,3 +62,13 @@ export async function requestWalkerService(payload) {
 	const { data } = await api.post('/proveedores/solicitar-servicio', payload);
 	return data;
 }
+
+export async function listApprovedProviders(params = {}, signal) {
+	const { data } = await api.get('/proveedores', { params, signal });
+	return data;
+}
+
+export async function searchProviders(params = {}, signal) {
+	const { data } = await api.get('/proveedores/buscar', { params, signal });
+	return data;
+}

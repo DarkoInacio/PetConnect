@@ -3,6 +3,8 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMyBookings } from '../services/bookings';
 import { getProviderProfilePath } from '../services/providers';
+import { cancelMyAppointment } from '../services/appointments';
+import { cancelCitaAsOwner, rescheduleCita } from '../services/citas';
 
 const APPOINTMENT_STATUS_LABELS = {
 	pending_confirmation: 'Pendiente de confirmación',
@@ -76,6 +78,7 @@ export function MyBookingsPage() {
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [actionMsg, setActionMsg] = useState('');
 
 	useEffect(() => {
 		if (authLoading || !user || user.role !== 'dueno') return;
@@ -96,6 +99,72 @@ export function MyBookingsPage() {
 		})();
 		return () => c.abort();
 	}, [authLoading, user]);
+
+	async function reloadBookings() {
+		try {
+			const res = await fetchMyBookings();
+			setData(res);
+		} catch {
+			// ignore
+		}
+	}
+
+	async function onCancelAppointment(row) {
+		const reason = window.prompt('Motivo de la cancelación (obligatorio):');
+		if (!reason || !reason.trim()) return;
+		setActionMsg('');
+		try {
+			await cancelMyAppointment(String(row.id), reason.trim().slice(0, 200));
+			setActionMsg('Cita cancelada.');
+			await reloadBookings();
+		} catch (err) {
+			setActionMsg(err.response?.data?.message || 'No se pudo cancelar.');
+		}
+	}
+
+	async function onCancelCitaLegacy(row) {
+		if (!window.confirm('¿Cancelar esta cita?')) return;
+		setActionMsg('');
+		try {
+			await cancelCitaAsOwner(String(row.id));
+			setActionMsg('Cita cancelada.');
+			await reloadBookings();
+		} catch (err) {
+			setActionMsg(err.response?.data?.message || 'No se pudo cancelar.');
+		}
+	}
+
+	async function onRescheduleCita(row) {
+		const local = window.prompt('Nueva fecha y hora (ej. 2026-05-01T15:00 en hora local):');
+		if (!local || !local.trim()) return;
+		const d = new Date(local.trim());
+		if (Number.isNaN(d.getTime())) {
+			setActionMsg('Fecha inválida.');
+			return;
+		}
+		setActionMsg('');
+		try {
+			await rescheduleCita(String(row.id), d.toISOString());
+			setActionMsg('Cita reagendada.');
+			await reloadBookings();
+		} catch (err) {
+			setActionMsg(err.response?.data?.message || 'No se pudo reagendar.');
+		}
+	}
+
+	function canCancelOwner(row) {
+		if (row.kind === 'cita_legacy') {
+			return ['pendiente', 'confirmada'].includes(row.status);
+		}
+		if (row.kind === 'appointment') {
+			return ['pending_confirmation', 'confirmed'].includes(row.status);
+		}
+		return false;
+	}
+
+	function canRescheduleLegacy(row) {
+		return row.kind === 'cita_legacy' && ['pendiente', 'confirmada'].includes(row.status);
+	}
 
 	if (authLoading) {
 		return (
@@ -131,9 +200,14 @@ export function MyBookingsPage() {
 			<p className='muted'>
 				Agenda, solicitudes a paseadores/cuidadores y citas anteriores en un solo listado.
 			</p>
+			<p className='muted'>
+				<Link to='/citas'>Próximas citas (legacy)</Link> · <Link to='/mi-perfil'>Mi perfil</Link> ·{' '}
+				<Link to='/mascotas'>Mis mascotas</Link>
+			</p>
 
 			{loading ? <p>Cargando reservas…</p> : null}
 			{error ? <p className='error'>{error}</p> : null}
+			{actionMsg ? <p className='review-success'>{actionMsg}</p> : null}
 
 			{!loading && !error && items.length === 0 ? (
 				<p className='bookings-empty'>Aún no tienes reservas registradas.</p>
@@ -149,6 +223,7 @@ export function MyBookingsPage() {
 								<th>Proveedor</th>
 								<th>Detalle</th>
 								<th>Estado</th>
+								<th>Acciones</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -191,6 +266,30 @@ export function MyBookingsPage() {
 										<td className='bookings-detail'>{detail}</td>
 										<td>
 											<span className={statusBadgeClass(row.status)}>{statusLabel}</span>
+										</td>
+										<td className='owner-booking-actions'>
+											{canCancelOwner(row) && row.kind === 'appointment' ? (
+												<button type='button' className='btn-reject btn-sm' onClick={() => onCancelAppointment(row)}>
+													Cancelar reserva
+												</button>
+											) : null}
+											{canCancelOwner(row) && row.kind === 'cita_legacy' ? (
+												<button type='button' className='btn-reject btn-sm' onClick={() => onCancelCitaLegacy(row)}>
+													Cancelar cita
+												</button>
+											) : null}
+											{canRescheduleLegacy(row) ? (
+												<button type='button' className='btn-sm' onClick={() => onRescheduleCita(row)}>
+													Reagendar
+												</button>
+											) : null}
+											{!(
+												(row.kind === 'appointment' && canCancelOwner(row)) ||
+												(row.kind === 'cita_legacy' && canCancelOwner(row)) ||
+												canRescheduleLegacy(row)
+											) ? (
+												<span className='muted'>—</span>
+											) : null}
 										</td>
 									</tr>
 								);

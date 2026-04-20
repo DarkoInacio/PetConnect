@@ -14,3 +14,13 @@ export async function deleteAgendaSlot(slotId) {
 	const { data } = await api.delete(`/provider/agenda/slots/${slotId}`);
 	return data;
 }
+
+export async function blockAgendaSlot(slotId) {
+	const { data } = await api.patch(`/provider/agenda/slots/${slotId}/block`);
+	return data;
+}
+
+export async function unblockAgendaSlot(slotId) {
+	const { data } = await api.patch(`/provider/agenda/slots/${slotId}/unblock`);
+	return data;
+}
