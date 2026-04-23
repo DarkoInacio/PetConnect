@@ -18,7 +18,8 @@ const providerPinIcon = L.divIcon({
 });
 
 function formatProviderType(providerType) {
-	if (!providerType) return 'Proveedor';
+	if (!providerType) return 'Profesional';
+	if (providerType === 'veterinaria') return 'Veterinaria';
 	return providerType.charAt(0).toUpperCase() + providerType.slice(1);
 }
 
@@ -98,7 +99,7 @@ export function ProviderProfilePage() {
 				setProvider(data.proveedor || null);
 			} catch (err) {
 				if (err.name === 'CanceledError' || err.name === 'AbortError') return;
-				setError(err.response?.data?.message || 'No se pudo cargar el perfil del proveedor.');
+				setError(err.response?.data?.message || 'No se pudo cargar el perfil público.');
 				setProvider(null);
 			} finally {
 				setLoading(false);
@@ -211,7 +212,7 @@ export function ProviderProfilePage() {
 				<Link className='back-link' to='/'>
 					Volver al mapa
 				</Link>
-				<p className='error'>{error || 'Proveedor no encontrado.'}</p>
+				<p className='error'>{error || 'Perfil no encontrado o aún no disponible (revisión o no publicado).'}</p>
 			</div>
 		);
 	}
@@ -277,7 +278,7 @@ export function ProviderProfilePage() {
 						) : (
 							<p className='profile-rating-line muted'>Sin reseñas públicas todavía.</p>
 						)}
-						<p>{perfil.description || 'Este proveedor aún no ha agregado una descripción.'}</p>
+						<p>{perfil.description || 'Aún no hay descripción pública en este perfil.'}</p>
 					</div>
 				</div>
 

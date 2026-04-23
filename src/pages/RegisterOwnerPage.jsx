@@ -70,9 +70,15 @@ export function RegisterOwnerPage() {
 						{submitting ? 'Creando…' : 'Registrarme'}
 					</button>
 					{error ? <p className='error'>{error}</p> : null}
-					<p className='muted'>
-						¿Ya tienes cuenta? <Link to='/login'>Iniciar sesión</Link>
-					</p>
+					<div className='auth-footer-links'>
+						<p className='muted' style={{ margin: 0 }}>
+							¿Ya tienes cuenta? <Link to='/login'>Iniciar sesión</Link>
+						</p>
+						<p className='muted' style={{ margin: '10px 0 0' }}>
+							¿Ofreces servicio veterinario, paseo o cuidado?{' '}
+							<Link to='/registro-proveedor'>Alta de proveedores</Link>
+						</p>
+					</div>
 				</form>
 			</section>
 		</div>

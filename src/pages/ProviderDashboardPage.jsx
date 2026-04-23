@@ -8,6 +8,7 @@ import {
 } from '../services/appointments';
 import {
 	blockAgendaSlot,
+	clearOmittedAgendaSlots,
 	deleteAgendaSlot,
 	generateAgendaSlots,
 	listMyAgendaSlots,
@@ -15,6 +16,7 @@ import {
 } from '../services/agenda';
 import { fetchProviderBookings } from '../services/bookings';
 import { cancelCitaAsProvider, confirmCitaAsProvider, recordCitaDiagnostico } from '../services/citas';
+import { formatChileDateTimeRange, formatInChile, formatTimeInChile } from '../constants/chileTime';
 
 const APPOINTMENT_STATUS_LABELS = {
 	pending_confirmation: 'Pendiente de confirmación',
@@ -39,23 +41,29 @@ const BOOKING_SOURCE_LABELS = {
 };
 
 function formatRange(startAt, endAt) {
-	if (!startAt) return '—';
-	try {
-		const s = new Date(startAt);
-		const e = endAt ? new Date(endAt) : null;
-		const opts = { dateStyle: 'medium', timeStyle: 'short' };
-		const a = s.toLocaleString('es-CL', opts);
-		if (!e) return a;
-		const b = e.toLocaleString('es-CL', opts);
-		return `${a} — ${b}`;
-	} catch {
-		return '—';
-	}
+	return formatChileDateTimeRange(startAt, endAt);
 }
 
 function ownerLabel(o) {
 	if (!o) return '—';
 	return `${o.name || ''} ${o.lastName || ''}`.trim() || 'Dueño';
+}
+
+function toYmdLocal(d) {
+	const p = (n) => String(n).padStart(2, '0');
+	return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function buildSlotsListParams(agFrom, agTo) {
+	const f = agFrom && String(agFrom).trim() ? String(agFrom).trim() : '';
+	const t = agTo && String(agTo).trim() ? String(agTo).trim() : '';
+	/** Sólo bloques que aun no comenzaron, salvo rango; el backend aplica días en zona Chile. */
+	const p = { onlyFuture: '1' };
+	if (f || t) {
+		p.fromYmd = f || t;
+		p.toYmd = t || f;
+	}
+	return p;
 }
 
 export function ProviderDashboardPage() {
@@ -101,7 +109,7 @@ export function ProviderDashboardPage() {
 		(async () => {
 			try {
 				setLoadingSlots(true);
-				const s = await listMyAgendaSlots(c.signal);
+				const s = await listMyAgendaSlots(c.signal, buildSlotsListParams(agendaFrom, agendaTo));
 				setSlots(Array.isArray(s.slots) ? s.slots : []);
 			} catch {
 				setSlots([]);
@@ -110,7 +118,7 @@ export function ProviderDashboardPage() {
 			}
 		})();
 		return () => c.abort();
-	}, [authLoading, user]);
+	}, [authLoading, user, agendaFrom, agendaTo]);
 
 	if (authLoading) {
 		return (
@@ -130,7 +138,7 @@ export function ProviderDashboardPage() {
 				<Link className='back-link' to='/'>
 					Inicio
 				</Link>
-				<p className='error'>Solo proveedores.</p>
+				<p className='error'>Solo cuentas de servicio (veterinario, paseo o cuidado).</p>
 			</div>
 		);
 	}
@@ -143,11 +151,32 @@ export function ProviderDashboardPage() {
 			if (agendaFrom.trim()) body.fromDate = agendaFrom.trim();
 			if (agendaTo.trim()) body.toDate = agendaTo.trim();
 			const res = await generateAgendaSlots(body);
-			setAgendaMsg(res.message || 'Bloques generados.');
-			const s = await listMyAgendaSlots();
+			let line = res.message || 'Bloques generados.';
+			const n = res.summary && typeof res.summary.respectedManualDeletes === 'number' ? res.summary.respectedManualDeletes : 0;
+			if (n > 0) {
+				line += ` (No se volvieron a insertar ${n} franjas que habías borrado: sigue leyendo el texto de ayuda abajo.)`;
+			}
+			setAgendaMsg(line);
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaMsg(err.response?.data?.message || 'No se pudo generar la agenda.');
+		}
+	}
+
+	async function onClearOmittedAgenda(e) {
+		e.preventDefault();
+		setAgendaMsg('');
+		const from = agendaFrom.trim() || toYmdLocal(new Date());
+		const to = agendaTo.trim() || from;
+		try {
+			const res = await clearOmittedAgendaSlots({ from, to });
+			const n = res.deletedCount != null ? res.deletedCount : 0;
+			setAgendaMsg(
+				(res && res.message) || `Listo. Se quitaron ${n} recuerdos de franjas borradas. Vuelve a generar.`
+			);
+		} catch (err) {
+			setAgendaMsg(err.response?.data?.message || 'No se pudo limpiar la supresión de franjas.');
 		}
 	}
 
@@ -155,7 +184,7 @@ export function ProviderDashboardPage() {
 		if (!window.confirm('¿Eliminar este bloque disponible?')) return;
 		try {
 			await deleteAgendaSlot(id);
-			const s = await listMyAgendaSlots();
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaMsg(err.response?.data?.message || 'No se pudo eliminar.');
@@ -165,7 +194,7 @@ export function ProviderDashboardPage() {
 	async function onBlockSlot(id) {
 		try {
 			await blockAgendaSlot(id);
-			const s = await listMyAgendaSlots();
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaMsg(err.response?.data?.message || 'No se pudo bloquear.');
@@ -175,7 +204,7 @@ export function ProviderDashboardPage() {
 	async function onUnblockSlot(id) {
 		try {
 			await unblockAgendaSlot(id);
-			const s = await listMyAgendaSlots();
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaMsg(err.response?.data?.message || 'No se pudo desbloquear.');
@@ -279,6 +308,8 @@ export function ProviderDashboardPage() {
 	}
 
 	const isVet = user.providerType === 'veterinaria';
+	const agendaStart = user?.providerProfile?.agendaSlotStart || '09:00';
+	const agendaEnd = user?.providerProfile?.agendaSlotEnd || '18:00';
 
 	function canRegisterClinical(row) {
 		if (!isVet) return false;
@@ -292,19 +323,20 @@ export function ProviderDashboardPage() {
 			<Link className='back-link' to='/'>
 				Mapa
 			</Link>
-			<h1>Panel proveedor</h1>
+			<h1>{isVet ? 'Panel de la clínica' : 'Panel de servicios'}</h1>
 			<p className='muted'>
-				Estado: <strong>{user.status}</strong> · Tipo: <strong>{user.providerType}</strong>
+				Estado: <strong>{user.status === 'en_revision' ? 'en revisión' : user.status}</strong> · Tipo:{' '}
+				<strong>{user.providerType === 'veterinaria' ? 'veterinaria' : user.providerType}</strong>
 			</p>
 			<p>
-				<Link to='/proveedor/mi-perfil'>Editar perfil público</Link>
+				<Link to='/proveedor/mi-perfil'>{isVet ? 'Configuración de la clínica' : 'Configurar perfil y tarifas'}</Link>
 			</p>
 
 			<section className='edit-fieldset book-section'>
 				<h2>Reservas y citas donde eres el profesional</h2>
 				<p className='hint muted'>
 					Puedes confirmar o cancelar solicitudes pendientes. Si la reserva ya estaba confirmada, la
-					cancelación del proveedor requiere al menos 2 horas de anticipación (misma regla que el dueño).
+					cancelación del profesional requiere al menos 2 horas de anticipación (misma regla que el dueño).
 					Las solicitudes de paseo o cuidado pueden marcarse como completadas cuando el servicio ya se
 					realizó (no aplica a citas clásicas ni a agenda veterinaria).
 				</p>
@@ -409,16 +441,28 @@ export function ProviderDashboardPage() {
 
 			{isVet ? (
 				<section className='edit-fieldset book-section'>
-					<h2>Agenda (bloques de 30 min, 09:00–18:00)</h2>
-					<p className='hint muted'>Solo veterinarias aprobadas pueden generar bloques.</p>
+					<h2>
+						Agenda (30 min) · rango en tu perfil: {agendaStart}–{agendaEnd} (hora Chile)
+					</h2>
+					<p className='hint muted'>
+						<strong>Por qué arriba pone 12:00 y abajo ves 9:30:</strong> el título es el horario que
+						<strong> guardaste ahora</strong> (lo usa «Generar» a partir de hoy). La lista mezcla bloques
+						<strong> ya creados antes</strong> con otra ventana. Si subiste 12:00, los tramos a 9:30 o 10:00
+						son viejos: bórralos o deja de verlos filtrando fechas. Después vuelve a generar.
+					</p>
+					<p className='hint muted'>
+						Solo veterinarias aprobadas. Con recepción (no 24/7), en «Configuración de clínica» el rango de
+						agenda coincide con apertura y cierre. Si <strong>eliminaste a mano</strong> y luego generas, no
+						se reinserta esa franja; usa «Liberar franjas suprimidas» si quieres ofrecerla otra vez.
+					</p>
 					<form className='agenda-generate-form' onSubmit={onGenerateAgenda}>
 						<div className='edit-row-2'>
 							<label className='edit-field'>
-								<span>Desde (YYYY-MM-DD, opcional)</span>
+								<span>Desde (generar y listar; vacío = todos los días futuros)</span>
 								<input type='date' value={agendaFrom} onChange={(e) => setAgendaFrom(e.target.value)} />
 							</label>
 							<label className='edit-field'>
-								<span>Hasta (opcional)</span>
+								<span>Hasta (opcional; si vacío, mismo día que Desde)</span>
 								<input type='date' value={agendaTo} onChange={(e) => setAgendaTo(e.target.value)} />
 							</label>
 						</div>
@@ -426,16 +470,35 @@ export function ProviderDashboardPage() {
 							Generar / rellenar bloques
 						</button>
 					</form>
+					<form
+						className='agenda-generate-form'
+						onSubmit={onClearOmittedAgenda}
+						style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--app-border, #e2e8f0)' }}
+					>
+						<p className='hint muted' style={{ margin: '0 0 8px' }}>
+							Si quieres que, tras borrar a mano, vuelva a ofrecerse un tramo, primero quita el bloqueo de
+							«reinsertar» para las <strong>fechas de arriba</strong> (o deja en blanco = solo hoy).
+						</p>
+						<button type='submit' className='btn-sm'>
+							Liberar franjas suprimidas (hoy o rango de fechas de arriba)
+						</button>
+					</form>
 					{agendaMsg ? <p className='review-success'>{agendaMsg}</p> : null}
-					<h3>Bloques disponibles actuales</h3>
+					<h3>
+						Bloques (solo futuro; {agendaFrom.trim() || agendaTo.trim() ? 'filtrando fechas de arriba' : 'todos los días'})
+					</h3>
+					<p className='hint muted' style={{ margin: '0 0 8px' }}>
+						Horario en <strong>Chile</strong>. Si fijas <strong>Desde = 24-04</strong> (y Hasta vacío) solo
+						verás el 24; un 23-04 que salía era por listar <strong>todas</strong> las fechas. Vacía las
+						fechas en blanco para ver otra vez todos los días futuros.
+					</p>
 					{loadingSlots ? <p>Cargando…</p> : null}
 					{!loadingSlots && slots.length === 0 ? <p className='muted'>No hay bloques futuros libres.</p> : null}
 					<ul className='slot-admin-list'>
 						{slots.map((s) => (
 							<li key={String(s._id)}>
 								<span>
-									{new Date(s.startAt).toLocaleString('es-CL')} —{' '}
-									{new Date(s.endAt).toLocaleTimeString('es-CL', { timeStyle: 'short' })}{' '}
+									{formatInChile(s.startAt)} — {formatTimeInChile(s.endAt)}{' '}
 									<small className='muted'>({s.status || '—'})</small>
 								</span>
 								{s.status === 'available' ? (

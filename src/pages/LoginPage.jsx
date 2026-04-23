@@ -60,13 +60,16 @@ export function LoginPage() {
 						{submitting ? 'Entrando…' : 'Entrar'}
 					</button>
 					{error ? <p className='error'>{error}</p> : null}
-					<p className='muted'>
-						<Link to='/registro'>Crear cuenta dueño</Link>
-						{' · '}
-						<Link to='/registro-proveedor'>Registro proveedor</Link>
-						{' · '}
-						<Link to='/recuperar-clave'>Olvidé mi contraseña</Link>
-					</p>
+					<div className='auth-footer-links'>
+						<p className='muted' style={{ margin: '0 0 8px' }}>
+							¿No tienes cuenta? Puedes{' '}
+							<Link to='/registro'>registrarte como dueño de mascota</Link> o como{' '}
+							<Link to='/registro-proveedor'>proveedor</Link> (veterinaria, paseo o cuidado).
+						</p>
+						<p className='muted' style={{ margin: 0 }}>
+							<Link to='/recuperar-clave'>Olvidé mi contraseña</Link>
+						</p>
+					</div>
 				</form>
 			</section>
 		</div>

@@ -1,5 +1,5 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { AppLayoutHeader } from './components/AppLayoutHeader';
 import { AdminProvidersPage } from './pages/AdminProvidersPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { CitasLegacyPage } from './pages/CitasLegacyPage';
@@ -24,47 +24,10 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { VetClinicalPage } from './pages/VetClinicalPage';
 import './App.css';
 
-function AppHeader() {
-	const { user, loading, logout } = useAuth();
-	return (
-		<header className='app-header'>
-			<nav className='app-nav'>
-				<Link to='/'>Mapa</Link>
-				<Link to='/explorar'>Explorar</Link>
-				{!loading && !user ? (
-					<>
-						<Link to='/login'>Iniciar sesión</Link>
-						<Link to='/registro'>Registro dueño</Link>
-						<Link to='/registro-proveedor'>Registro proveedor</Link>
-					</>
-				) : null}
-				{!loading && user ? (
-					<>
-						<span className='nav-user'>
-							{user.name} · {user.role}
-						</span>
-						{user.role === 'proveedor' ? <Link to='/proveedor'>Panel proveedor</Link> : null}
-						{user.role === 'proveedor' ? (
-							<Link to='/proveedor/mi-perfil'>Editar perfil</Link>
-						) : null}
-						{user.role === 'dueno' ? <Link to='/mis-reservas'>Mis reservas</Link> : null}
-						{user.role === 'dueno' ? <Link to='/mascotas'>Mascotas</Link> : null}
-						{user.role === 'dueno' ? <Link to='/mi-perfil'>Mi perfil</Link> : null}
-						{user.role === 'admin' ? <Link to='/admin/proveedores'>Admin proveedores</Link> : null}
-						<button type='button' className='nav-logout' onClick={logout}>
-							Salir
-						</button>
-					</>
-				) : null}
-			</nav>
-		</header>
-	);
-}
-
 function App() {
 	return (
 		<BrowserRouter>
-			<AppHeader />
+			<AppLayoutHeader />
 			<Routes>
 				<Route path='/' element={<ProvidersMapPage />} />
 				<Route path='/explorar' element={<ProvidersExplorePage />} />

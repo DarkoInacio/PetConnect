@@ -36,6 +36,10 @@ export function AuthProvider({ children }) {
 		try {
 			const u = await fetchMyProfile();
 			setUser(u);
+		} catch (e) {
+			setStoredAuthToken(null);
+			setUser(null);
+			throw e;
 		} finally {
 			setLoading(false);
 		}

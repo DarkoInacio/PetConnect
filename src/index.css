@@ -1,14 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		--background: 195 30% 97%;
+		--foreground: 222 47% 10%;
+		--card: 0 0% 100%;
+		--card-foreground: 222 47% 10%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 222 47% 10%;
+		--primary: 168 64% 31%;
+		--primary-foreground: 0 0% 100%;
+		--secondary: 195 25% 94%;
+		--secondary-foreground: 222 30% 18%;
+		--muted: 210 20% 94%;
+		--muted-foreground: 215 16% 40%;
+		--accent: 168 30% 94%;
+		--accent-foreground: 168 50% 22%;
+		--destructive: 0 84% 58%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 210 20% 88%;
+		--input: 210 20% 90%;
+		--ring: 168 50% 38%;
+		--radius: 0.6rem;
+		--app-font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+		--app-primary: #0d9488;
+		--app-primary-hover: #0f766e;
+		--app-primary-mid: #14b8a6;
+		--app-user-marker: #0ea5e9;
+		--app-surface: rgba(255, 255, 255, 0.9);
+		--app-border: #e2e8f0;
+		--app-radius-lg: 0.9rem;
+		--app-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.05);
+		--app-shadow-hover: 0 4px 6px rgba(15, 23, 42, 0.07), 0 12px 32px rgba(15, 23, 42, 0.08);
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+	body {
+		@apply text-foreground antialiased;
+		margin: 0;
+		font-family: var(--app-font);
+		background: linear-gradient(180deg, hsl(195 35% 98%) 0%, hsl(200 25% 96%) 45%, hsl(195 20% 94%) 100%);
+		background-attachment: fixed;
+	}
+}
+
 * {
 	box-sizing: border-box;
 }
 
-body {
-	margin: 0;
-	font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-	background: #f4f7fb;
-	color: #1d2634;
-}
-
 #root {
 	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
 }

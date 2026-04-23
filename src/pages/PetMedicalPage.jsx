@@ -12,6 +12,20 @@ function downloadBlob(blob, filename) {
 	URL.revokeObjectURL(url);
 }
 
+function buildMedicalPdfFileName(petName) {
+	const d = new Date();
+	const yy = String(d.getFullYear()).slice(-2);
+	const mm = String(d.getMonth() + 1).padStart(2, '0');
+	const dd = String(d.getDate()).padStart(2, '0');
+	const base = (petName || 'mascota')
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-zA-Z0-9]+/g, '-')
+		.replace(/--+/g, '-')
+		.replace(/^-|-$/g, '') || 'mascota';
+	return `${base}-${yy}${mm}${dd}.pdf`;
+}
+
 export function PetMedicalPage() {
 	const { petId } = useParams();
 	const { user, loading: authLoading } = useAuth();
@@ -83,7 +97,7 @@ export function PetMedicalPage() {
 		setPdfLoading(true);
 		try {
 			const blob = await downloadMedicalPdfBlob(petId);
-			downloadBlob(blob, `historial-${petId}.pdf`);
+			downloadBlob(blob, buildMedicalPdfFileName(p?.name));
 		} catch (err) {
 			setError(err.response?.data?.message || 'No se pudo generar el PDF.');
 		} finally {

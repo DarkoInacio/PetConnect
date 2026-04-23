@@ -30,10 +30,29 @@ function userToForm(user) {
 	const addr = pp.address || {};
 	const wt = pp.walkerTariffs || {};
 	const sm = pp.socialMedia || {};
+	const pType = user?.providerType;
+	const isWalkerT = pType === 'paseador' || pType === 'cuidador';
+	const isVetT = pType === 'veterinaria';
+	const schedRaw = (pp.schedule || '').trim();
+	let open24Hours = false;
+	let scheduleFree = schedRaw;
+	if (!isWalkerT && !isVetT && (/^24\/7(\s*—\s*|\s*-\s*|\s+)/.test(schedRaw) || schedRaw === '24/7')) {
+		open24Hours = true;
+		scheduleFree = schedRaw
+			.replace(/^24\/7(\s*—\s*|\s*-\s*|\s+)/, '')
+			.replace(/^24\/7$/i, '')
+			.trim();
+	}
+	const vetSched = isVetT ? parseVetScheduleString(schedRaw) : null;
+
 	return {
 		phone: user?.phone || '',
 		description: pp.description || '',
-		schedule: pp.schedule || '',
+		open24Hours: isVetT ? Boolean(vetSched.open24) : isWalkerT ? false : open24Hours,
+		schedule: isVetT ? '' : isWalkerT ? schedRaw : scheduleFree,
+		receptionOpen: isVetT ? vetSched.open : '09:00',
+		receptionClose: isVetT ? vetSched.close : '18:00',
+		scheduleNotes: isVetT ? vetSched.notes : '',
 		services: Array.isArray(pp.services) ? pp.services.join('\n') : '',
 		publicSlug: pp.publicSlug || '',
 		isPublished: pp.isPublished !== false,
@@ -41,8 +60,6 @@ function userToForm(user) {
 		addressStreet: addr.street || '',
 		addressCommune: addr.commune || '',
 		addressCity: addr.city || '',
-		addressLat: addr.coordinates?.lat != null ? String(addr.coordinates.lat) : '',
-		addressLng: addr.coordinates?.lng != null ? String(addr.coordinates.lng) : '',
 		socialInstagram: sm.instagram || '',
 		socialFacebook: sm.facebook || '',
 		socialTwitter: sm.twitter || '',
@@ -59,8 +76,60 @@ function userToForm(user) {
 		walkerCurrency: wt.currency || 'CLP',
 		refAmount: pp.referenceRate?.amount != null ? String(pp.referenceRate.amount) : '',
 		refUnit: pp.referenceRate?.unit || '',
-		refCurrency: pp.referenceRate?.currency || 'CLP'
+		refCurrency: pp.referenceRate?.currency || 'CLP',
+		agendaSlotStart: toTimeInputValue(pp.agendaSlotStart) || '09:00',
+		agendaSlotEnd: toTimeInputValue(pp.agendaSlotEnd) || '18:00'
 	};
+}
+
+function toTimeInputValue(s) {
+	if (s == null) return '';
+	const t = String(s).trim();
+	if (!t) return '';
+	const m = t.match(/^(\d{1,2}):(\d{2})/);
+	if (!m) return '';
+	const h = String(m[1]).padStart(2, '0');
+	return `${h}:${m[2]}`;
+}
+
+function timeStringToMinutes(hhmm) {
+	const t = toTimeInputValue(hhmm);
+	if (!t) return NaN;
+	const [h, m] = t.split(':').map(Number);
+	return h * 60 + m;
+}
+
+/**
+ * A partir de providerProfile.schedule (veterinaria) obtiene 24/7, rango apertura/cierre y notas extra.
+ * Formato de guardado: "24/7" o "24/7 — notas", o "Horario 09:00 – 18:00 · notas" (ver onSubmit).
+ */
+function parseVetScheduleString(raw) {
+	const t = (raw || '').trim();
+	const defaults = { open: '09:00', close: '18:00' };
+	if (!t) {
+		return { open24: false, ...defaults, notes: '' };
+	}
+	if (/^24\/7(\s*—\s*|\s*-\s*|\s+|$)/.test(t) || /^24\/7$/i.test(t)) {
+		const notes = t
+			.replace(/^24\/7(\s*—\s*|\s*-\s*|\s+)/, '')
+			.replace(/^24\/7$/i, '')
+			.trim();
+		return { open24: true, ...defaults, notes };
+	}
+	const m = t.match(
+		/(\d{1,2}):(\d{2})\s*(?:[-–—]|a\.?\s*las?|hasta|to)\s*(\d{1,2}):(\d{2})/i
+	);
+	if (m) {
+		const o = toTimeInputValue(`${m[1]}:${m[2]}`) || defaults.open;
+		const c = toTimeInputValue(`${m[3]}:${m[4]}`) || defaults.close;
+		let notes = t.replace(m[0], ' ').replace(/\s+/g, ' ').replace(/^horario\s*/i, '').trim();
+		notes = notes
+			.replace(/^\s*·\s*|\s*·\s*$/g, '')
+			.replace(/\s*·\s*$/g, '')
+			.trim();
+		return { open24: false, open: o, close: c, notes: notes || '' };
+	}
+	return { open24: false, ...defaults, notes: t };
 }
 
 export function ProviderMiPerfilPage() {
@@ -89,6 +158,7 @@ export function ProviderMiPerfilPage() {
 	}
 
 	const isWalker = user.providerType === 'paseador' || user.providerType === 'cuidador';
+	const isVet = user.providerType === 'veterinaria';
 
 	function setField(key, value) {
 		setForm((f) => ({ ...f, [key]: value }));
@@ -110,10 +180,37 @@ export function ProviderMiPerfilPage() {
 		setMessage('');
 		setSaving(true);
 		try {
+			let scheduleOut;
+			if (isVet) {
+				if (form.open24Hours) {
+					scheduleOut =
+						'24/7' + (form.scheduleNotes && String(form.scheduleNotes).trim() ? ' — ' + String(form.scheduleNotes).trim() : '');
+				} else {
+					const o = toTimeInputValue(form.receptionOpen) || '09:00';
+					const c = toTimeInputValue(form.receptionClose) || '18:00';
+					const minO = timeStringToMinutes(o);
+					const minC = timeStringToMinutes(c);
+					if (Number.isNaN(minO) || Number.isNaN(minC)) {
+						setError('Indica apertura y cierre con formato de hora válido.');
+						setSaving(false);
+						return;
+					}
+					if (minO >= minC) {
+						setError('La hora de cierre debe ser posterior a la de apertura.');
+						setSaving(false);
+						return;
+					}
+					const extra = form.scheduleNotes && String(form.scheduleNotes).trim() ? ` · ${String(form.scheduleNotes).trim()}` : '';
+					scheduleOut = `Horario ${o} – ${c}${extra}`;
+				}
+			} else {
+				scheduleOut = form.schedule.trim();
+			}
+
 			const body = {
 				phone: form.phone.trim(),
 				description: form.description.trim(),
-				schedule: form.schedule.trim(),
+				schedule: scheduleOut,
 				services: form.services
 					.split(/[\n,]+/)
 					.map((s) => s.trim())
@@ -133,12 +230,6 @@ export function ProviderMiPerfilPage() {
 					website: form.socialWebsite.trim()
 				}
 			};
-
-			const lat = form.addressLat.trim();
-			const lng = form.addressLng.trim();
-			if (lat !== '' && lng !== '') {
-				body.address.coordinates = { lat: Number(lat), lng: Number(lng) };
-			}
 
 			if (isWalker) {
 				body.serviceCommunes = form.serviceCommunes
@@ -176,12 +267,24 @@ export function ProviderMiPerfilPage() {
 				}
 			}
 
-			if (form.refAmount.trim() !== '') {
+			if (isWalker && form.refAmount.trim() !== '') {
 				body.referenceRate = {
 					amount: Number(form.refAmount),
 					unit: form.refUnit.trim() || 'por_servicio',
 					currency: form.refCurrency.trim() || 'CLP'
 				};
+			}
+
+			if (isVet) {
+				// Mismo rango que apertura/cierre de recepción (configurado arriba) salvo 24/7, donde hace falta
+				// una ventana explícita de bloques 30 min.
+				if (form.open24Hours) {
+					body.agendaSlotStart = String(form.agendaSlotStart).trim();
+					body.agendaSlotEnd = String(form.agendaSlotEnd).trim();
+				} else {
+					body.agendaSlotStart = toTimeInputValue(form.receptionOpen) || '09:00';
+					body.agendaSlotEnd = toTimeInputValue(form.receptionClose) || '18:00';
+				}
 			}
 
 			const res = await updateMyProviderProfile(body);
@@ -211,17 +314,22 @@ export function ProviderMiPerfilPage() {
 			<Link className='back-link' to='/'>
 				Volver al mapa
 			</Link>
-			<h1>Mi perfil proveedor</h1>
+			<h1>{isVet ? 'Configuración de la clínica' : 'Configurar mi perfil de servicio'}</h1>
 			<p className='muted'>
-				Tipo: <strong>{user.providerType}</strong>
+				Tipo: <strong>{user.providerType === 'veterinaria' ? 'veterinaria' : user.providerType}</strong>
 			</p>
 			{user.status && user.status !== 'aprobado' ? (
-				<p className='warn-banner'>Estado de cuenta: {user.status}.</p>
-			) : null}
-			{previewPath ? (
-				<p>
-					<Link to={previewPath}>Ir al perfil público</Link>
+				<p className='warn-banner'>
+					Estado: <strong>{user.status === 'en_revision' ? 'en revisión' : user.status}</strong>. El enlace
+					«perfil público» solo responde cuando un administrador marca la cuenta como aprobada.
 				</p>
+			) : null}
+			{user.status === 'aprobado' && previewPath ? (
+				<p>
+					<Link to={previewPath}>Ver perfil público</Link>
+				</p>
+			) : user.status !== 'aprobado' && previewPath ? (
+				<p className='hint muted'>Previsualizar URL: {previewPath} (en revisión, no accesible aún para visitantes)</p>
 			) : null}
 
 			<form className='provider-edit-form' onSubmit={onSubmit}>
@@ -241,12 +349,18 @@ export function ProviderMiPerfilPage() {
 							: null}
 					</p>
 					<label className='edit-field'>
-						<span>Slug público (URL amigable)</span>
+						<span>Slug público (minúsculas, sin espacios: usa -)</span>
 						<input
 							type='text'
 							value={form.publicSlug}
-							onChange={(e) => setField('publicSlug', e.target.value)}
-							placeholder='ej. maria-paseos'
+							onChange={(e) => {
+								const v = e.target.value
+									.toLowerCase()
+									.replace(/\s+/g, '-')
+									.replace(/--+/g, '-');
+								setField('publicSlug', v);
+							}}
+							placeholder='ej. clinica-calle-los-rosales'
 							autoComplete='off'
 						/>
 					</label>
@@ -276,10 +390,63 @@ export function ProviderMiPerfilPage() {
 							onChange={(e) => setField('description', e.target.value)}
 						/>
 					</label>
-					<label className='edit-field'>
-						<span>Horarios (texto libre)</span>
-						<input value={form.schedule} onChange={(e) => setField('schedule', e.target.value)} />
-					</label>
+					{isVet ? (
+						<div className='edit-field schedule-24h-block'>
+							<label className='check-row' style={{ marginBottom: 8 }}>
+								<input
+									type='checkbox'
+									checked={form.open24Hours}
+									onChange={(e) => setField('open24Hours', e.target.checked)}
+								/>
+								<span>Atención 24/7 (sin cierre; urgencias o turno continuo)</span>
+							</label>
+							{!form.open24Hours ? (
+								<div className='edit-row-2 reception-time-row'>
+									<label className='edit-field'>
+										<span>Apertura (recepción / atención al público)</span>
+										<input
+											type='time'
+											step={300}
+											value={form.receptionOpen}
+											onChange={(e) => setField('receptionOpen', e.target.value)}
+										/>
+									</label>
+									<label className='edit-field'>
+										<span>Cierre (recepción)</span>
+										<input
+											type='time'
+											step={300}
+											value={form.receptionClose}
+											onChange={(e) => setField('receptionClose', e.target.value)}
+										/>
+									</label>
+								</div>
+							) : (
+								<p className='hint muted' style={{ margin: '0 0 8px' }}>
+									Si atiendes 24/7, no aplica apertura/cierre. Puedes añadir un comentario abajo (feriados,
+									urgencias, etc.).
+								</p>
+							)}
+							<label className='edit-field'>
+								<span>Comentario opcional</span>
+								<textarea
+									rows={2}
+									placeholder='Ej. Sábados cierre 14:00, cerrado domingos, recepción de urgencias nocturna…'
+									value={form.scheduleNotes}
+									onChange={(e) => setField('scheduleNotes', e.target.value)}
+								/>
+							</label>
+						</div>
+					) : (
+						<label className='edit-field'>
+							<span>Horarios (texto libre)</span>
+							<textarea
+								rows={2}
+								value={form.schedule}
+								onChange={(e) => setField('schedule', e.target.value)}
+							/>
+						</label>
+					)}
 					<label className='edit-field'>
 						<span>Servicios (uno por línea o separados por coma)</span>
 						<textarea
@@ -288,13 +455,47 @@ export function ProviderMiPerfilPage() {
 							onChange={(e) => setField('services', e.target.value)}
 						/>
 					</label>
+					{isVet && !form.open24Hours ? (
+						<p className='hint muted' style={{ marginTop: 10 }}>
+							Los <strong>bloques de 30 min</strong> (panel del proveedor) se generan entre <strong>apertura
+							y cierre de recepción</strong> que fijaste arriba, en hora Chile. No hace falta un segundo
+							horario.
+						</p>
+					) : null}
+					{isVet && form.open24Hours ? (
+						<div className='edit-fieldset vet-agenda-in-contact' style={{ border: 0, padding: 0, marginTop: 12 }}>
+							<strong className='block mb-1'>Rango de bloques de agenda (citas, hora Chile)</strong>
+							<p className='hint muted' style={{ margin: '0 0 8px' }}>
+								Con atención 24/7 indica una <strong>ventana</strong> concreta para ofrecer reservas por
+								agenda (p. ej. 08:00–20:00). Lo puedes ajustar sin tocar el texto 24/7.
+							</p>
+							<div className='edit-row-2'>
+								<label className='edit-field'>
+									<span>Primera cita (HH:MM)</span>
+									<input
+										type='time'
+										step={1800}
+										value={form.agendaSlotStart}
+										onChange={(e) => setField('agendaSlotStart', e.target.value)}
+									/>
+								</label>
+								<label className='edit-field'>
+									<span>Fin de citas (HH:MM, exclusivo del último bloque)</span>
+									<input
+										type='time'
+										step={1800}
+										value={form.agendaSlotEnd}
+										onChange={(e) => setField('agendaSlotEnd', e.target.value)}
+									/>
+								</label>
+							</div>
+						</div>
+					) : null}
 				</fieldset>
 
 				<fieldset className='edit-fieldset'>
 					<legend>Dirección</legend>
-					<p className='hint muted'>
-						Si no indicas lat/lng, el servidor intentará geocodificar calle, comuna y ciudad.
-					</p>
+					<p className='hint muted'>El mapa se calcula con calle, comuna y ciudad (geocodificación en el servidor).</p>
 					<label className='edit-field'>
 						<span>Calle</span>
 						<input value={form.addressStreet} onChange={(e) => setField('addressStreet', e.target.value)} />
@@ -307,36 +508,28 @@ export function ProviderMiPerfilPage() {
 						<span>Ciudad</span>
 						<input value={form.addressCity} onChange={(e) => setField('addressCity', e.target.value)} />
 					</label>
-					<div className='edit-row-2'>
-						<label className='edit-field'>
-							<span>Latitud (opcional)</span>
-							<input value={form.addressLat} onChange={(e) => setField('addressLat', e.target.value)} />
-						</label>
-						<label className='edit-field'>
-							<span>Longitud (opcional)</span>
-							<input value={form.addressLng} onChange={(e) => setField('addressLng', e.target.value)} />
-						</label>
-					</div>
 				</fieldset>
 
-				<fieldset className='edit-fieldset'>
-					<legend>Tarifa referencial (opcional)</legend>
-					<p className='hint muted'>Visible en búsquedas; complementa las tarifas detalladas de paseador/cuidador.</p>
-					<div className='edit-row-2'>
+				{isWalker ? (
+					<fieldset className='edit-fieldset'>
+						<legend>Tarifa referencial (opcional)</legend>
+						<p className='hint muted'>Visible en búsquedas, aparte de las tarifas paseo/cuidado detalladas abajo.</p>
+						<div className='edit-row-2'>
+							<label className='edit-field'>
+								<span>Monto</span>
+								<input value={form.refAmount} onChange={(e) => setField('refAmount', e.target.value)} />
+							</label>
+							<label className='edit-field'>
+								<span>Unidad (ej. por_hora, consulta)</span>
+								<input value={form.refUnit} onChange={(e) => setField('refUnit', e.target.value)} />
+							</label>
+						</div>
 						<label className='edit-field'>
-							<span>Monto</span>
-							<input value={form.refAmount} onChange={(e) => setField('refAmount', e.target.value)} />
+							<span>Moneda</span>
+							<input value={form.refCurrency} onChange={(e) => setField('refCurrency', e.target.value)} />
 						</label>
-						<label className='edit-field'>
-							<span>Unidad (ej. por_hora, consulta)</span>
-							<input value={form.refUnit} onChange={(e) => setField('refUnit', e.target.value)} />
-						</label>
-					</div>
-					<label className='edit-field'>
-						<span>Moneda</span>
-						<input value={form.refCurrency} onChange={(e) => setField('refCurrency', e.target.value)} />
-					</label>
-				</fieldset>
+					</fieldset>
+				) : null}
 
 				<fieldset className='edit-fieldset'>
 					<legend>Redes</legend>

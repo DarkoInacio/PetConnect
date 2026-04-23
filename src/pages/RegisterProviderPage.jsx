@@ -4,9 +4,31 @@ import { useAuth } from '../hooks/useAuth';
 import { setStoredAuthToken } from '../services/api';
 import { registerProviderFormData } from '../services/authForms';
 
+const PROVIDER_OPTIONS = [
+	{
+		type: 'veterinaria',
+		title: 'Veterinaria o clínica',
+		subtitle: 'Citas, agenda y ficha clínica en el mapa.',
+		hint: 'Necesitas domicilio y datos de registro profesional.'
+	},
+	{
+		type: 'paseador',
+		title: 'Paseador',
+		subtitle: 'Servicio de paseo de mascotas.',
+		hint: 'Indica comunas, tarifas y disponibilidad.'
+	},
+	{
+		type: 'cuidador',
+		title: 'Cuidador a domicilio',
+		subtitle: 'Cuidado o alojamiento temporal.',
+		hint: 'Indica comunas, tarifas y disponibilidad.'
+	}
+];
+
 export function RegisterProviderPage() {
 	const { refreshUser } = useAuth();
 	const navigate = useNavigate();
+	const [step, setStep] = useState('elegir');
 	const [providerType, setProviderType] = useState('veterinaria');
 	const [name, setName] = useState('');
 	const [lastName, setLastName] = useState('');
@@ -68,23 +90,67 @@ export function RegisterProviderPage() {
 		}
 	}
 
+	function pickProviderType(t) {
+		setProviderType(t);
+		setStep('formulario');
+	}
+
+	if (step === 'elegir') {
+		return (
+			<div className='page auth-page register-provider-page'>
+				<Link className='back-link' to='/'>
+					Volver al mapa
+				</Link>
+				<section className='auth-card wide-card'>
+					<h1>Proveedores: elige tu tipo de servicio</h1>
+					<p className='muted'>
+						Así te pedimos los datos adecuados. Tu cuenta quedará <strong>en revisión</strong> hasta
+						que un administrador la apruebe.
+					</p>
+					<div className='provider-pick-grid'>
+						{PROVIDER_OPTIONS.map((opt) => (
+							<button
+								type='button'
+								key={opt.type}
+								className='provider-pick-card'
+								onClick={() => pickProviderType(opt.type)}
+							>
+								<strong>{opt.title}</strong>
+								<span className='provider-pick-sub'>{opt.subtitle}</span>
+								<small className='muted'>{opt.hint}</small>
+							</button>
+						))}
+					</div>
+					<p className='muted' style={{ marginTop: 20, textAlign: 'center' }}>
+						¿Eres dueño de una mascota? <Link to='/registro'>Regístrate aquí</Link>
+					</p>
+					<p className='muted' style={{ textAlign: 'center' }}>
+						¿Ya tienes cuenta? <Link to='/login'>Iniciar sesión</Link>
+					</p>
+				</section>
+			</div>
+		);
+	}
+
+	const tipoLabel = PROVIDER_OPTIONS.find((o) => o.type === providerType)?.title || providerType;
+
 	return (
 		<div className='page auth-page register-provider-page'>
 			<Link className='back-link' to='/'>
 				Volver al mapa
 			</Link>
 			<section className='auth-card wide-card'>
-				<h1>Registro proveedor</h1>
-				<p className='muted'>Tu cuenta quedará en revisión hasta que un administrador apruebe el perfil.</p>
+				<p className='muted' style={{ margin: '0 0 4px' }}>
+					<button type='button' className='link-button' onClick={() => setStep('elegir')}>
+						← Elegir otro tipo de proveedor
+					</button>
+				</p>
+				<h1 style={{ marginTop: 8 }}>Alta de proveedor</h1>
+				<p className='provider-pick-active'>
+					Te estás registrando como: <strong>{tipoLabel}</strong>
+				</p>
+				<p className='muted'>Tu solicitud se revisa antes de publicar el perfil.</p>
 				<form className='auth-form' onSubmit={onSubmit}>
-					<label className='auth-field'>
-						<span>Tipo</span>
-						<select value={providerType} onChange={(e) => setProviderType(e.target.value)}>
-							<option value='veterinaria'>Veterinaria</option>
-							<option value='paseador'>Paseador</option>
-							<option value='cuidador'>Cuidador</option>
-						</select>
-					</label>
 					<div className='edit-row-2'>
 						<label className='auth-field'>
 							<span>Nombre</span>

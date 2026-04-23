@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { fetchProvidersMapData, getProviderProfilePath } from '../services/providers';
 import { ProvidersMap } from '../components/ProvidersMap';
 
 const DEFAULT_CENTER = { lat: -33.4489, lng: -70.6693 };
 
 export function ProvidersMapPage() {
+	const { user } = useAuth();
 	const [markers, setMarkers] = useState([]);
 	const [center, setCenter] = useState(DEFAULT_CENTER);
 	const [selectedProviderId, setSelectedProviderId] = useState(null);
@@ -13,7 +15,6 @@ export function ProvidersMapPage() {
 	const [error, setError] = useState('');
 
 	const [filters, setFilters] = useState({
-		tipo: '',
 		servicio: '',
 		ciudad: '',
 		radio: 10
@@ -56,7 +57,7 @@ export function ProvidersMapPage() {
 		const timeoutId = setTimeout(async () => {
 			try {
 				const params = {
-					tipo: filters.tipo || undefined,
+					tipo: 'veterinaria',
 					servicio: filters.servicio || undefined,
 					ciudad: filters.ciudad || undefined,
 					radio: Number(filters.radio) || 10
@@ -94,23 +95,23 @@ export function ProvidersMapPage() {
 	return (
 		<div className='page'>
 			<header className='header'>
-				<h1>PetConnect - Mapa de proveedores</h1>
+				<h1>Mapa de clínicas veterinarias</h1>
 				<p>
-					Encuentra servicios cercanos y revisa su perfil rápidamente. También puedes{' '}
-					<Link to='/explorar'>explorar con filtros (lista)</Link>.
+					{user
+						? 'Usamos tu ubicación como referencia (punto en el mapa) para ordenar y filtrar clínicas cercanas.'
+						: 'Explora clínicas en el mapa. Crea una cuenta para guardar reservas y ficha de mascota.'}{' '}
+					También puedes{' '}
+					<Link to='/explorar'>listar paseadores, cuidadores y otras búsquedas</Link>.
 				</p>
 			</header>
 
 			<section className='filters'>
-				<select
-					value={filters.tipo}
-					onChange={(e) => setFilters((prev) => ({ ...prev, tipo: e.target.value }))}
-				>
-					<option value=''>Todos los tipos</option>
-					<option value='veterinaria'>Veterinaria</option>
-					<option value='paseador'>Paseador</option>
-					<option value='cuidador'>Cuidador</option>
-				</select>
+				<div className='map-filter-static'>
+					<span className='map-filter-label'>Solo clínicas veterinarias</span>
+					<small className='muted' style={{ display: 'block' }}>
+						Paseadores y cuidadores: usa Explorar.
+					</small>
+				</div>
 				<input
 					type='text'
 					placeholder='Servicio'
@@ -139,6 +140,11 @@ export function ProvidersMapPage() {
 					<ProvidersMap
 						center={center}
 						markers={markers}
+						userPosition={
+							geo.ready && geo.lat != null && geo.lng != null
+								? { lat: geo.lat, lng: geo.lng }
+								: null
+						}
 						selectedProviderId={selectedProviderId}
 						onSelectProvider={setSelectedProviderId}
 					/>

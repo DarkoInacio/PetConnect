@@ -34,6 +34,13 @@ function iconByType(type) {
 	});
 }
 
+const userLocationIcon = L.divIcon({
+	className: 'user-loc-marker',
+	html: '<div class="user-loc-dot" title="Tu ubicación"></div>',
+	iconSize: [20, 20],
+	iconAnchor: [10, 10]
+});
+
 function RecenterMap({ center }) {
 	const map = useMap();
 	useEffect(() => {
@@ -42,7 +49,7 @@ function RecenterMap({ center }) {
 	return null;
 }
 
-export function ProvidersMap({ center, markers, selectedProviderId, onSelectProvider }) {
+export function ProvidersMap({ center, markers, userPosition, selectedProviderId, onSelectProvider }) {
 	const mapRef = useRef(null);
 	const markerRefs = useRef({});
 
@@ -74,6 +81,14 @@ export function ProvidersMap({ center, markers, selectedProviderId, onSelectProv
 				url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 			/>
 			<RecenterMap center={center} />
+
+			{userPosition ? (
+				<Marker position={[userPosition.lat, userPosition.lng]} icon={userLocationIcon}>
+					<Popup>
+						<small>Tu ubicación aproximada (referencia)</small>
+					</Popup>
+				</Marker>
+			) : null}
 
 			<MarkerClusterGroup chunkedLoading>
 				{markers.map((provider) => (

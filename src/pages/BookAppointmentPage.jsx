@@ -5,6 +5,7 @@ import { createSlotAppointment, fetchAvailableSlots } from '../services/appointm
 import { createLegacyCita } from '../services/citas';
 import { fetchProviderPublicProfile, getProviderProfilePath } from '../services/providers';
 import { listPets } from '../services/pets';
+import { formatInChile, formatTimeInChile } from '../constants/chileTime';
 
 function toYmdLocal(d) {
 	const pad = (n) => String(n).padStart(2, '0');
@@ -307,12 +308,7 @@ export function BookAppointmentPage() {
 											onChange={() => setSelectedSlotId(String(s._id))}
 										/>
 										<span>
-											{new Date(s.startAt).toLocaleString('es-CL', {
-												dateStyle: 'medium',
-												timeStyle: 'short'
-											})}{' '}
-											—{' '}
-											{new Date(s.endAt).toLocaleTimeString('es-CL', { timeStyle: 'short' })}
+											{formatInChile(s.startAt)} — {formatTimeInChile(s.endAt)}
 										</span>
 									</label>
 								</li>

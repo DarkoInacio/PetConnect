@@ -1,3 +1,24 @@
+/* Marcador "tu ubicación" en el mapa (Leaflet) */
+.user-loc-dot {
+	width: 14px;
+	height: 14px;
+	border-radius: 999px;
+	background: var(--app-user-marker);
+	border: 2px solid #fff;
+	box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.4);
+}
+
+.map-filter-static {
+	padding: 10px 12px;
+	border: 1px solid var(--app-border);
+	border-radius: 10px;
+	background: #f0fdfa;
+}
+.map-filter-label {
+	font-weight: 600;
+	color: #1d2634;
+}
+
 .app-header {
 	background: #0f172a;
 	color: #f8fafc;
@@ -46,12 +67,14 @@
 .page {
 	max-width: 1200px;
 	margin: 0 auto;
-	padding: 16px;
+	padding: 20px 16px 28px;
 }
 
 .header h1 {
 	margin: 0;
-	font-size: 1.6rem;
+	font-size: clamp(1.35rem, 2.5vw, 1.65rem);
+	font-weight: 700;
+	letter-spacing: -0.02em;
 }
 
 .header p {
@@ -69,7 +92,7 @@
 .filters input,
 .filters select {
 	padding: 10px 12px;
-	border: 1px solid #ced5de;
+	border: 1px solid var(--app-border);
 	border-radius: 10px;
 	background: #fff;
 }
@@ -77,24 +100,26 @@
 .content {
 	display: grid;
 	grid-template-columns: 2fr 1fr;
-	gap: 12px;
-	height: calc(100vh - 190px);
+	gap: 14px;
+	height: calc(100dvh - 8.5rem);
 	min-height: 520px;
 }
 
 .map-panel {
-	border-radius: 12px;
+	border-radius: var(--app-radius-lg, 0.9rem);
 	overflow: hidden;
-	border: 1px solid #d4dbe5;
+	border: 1px solid var(--app-border);
+	box-shadow: var(--app-shadow);
 }
 
 .list-panel {
-	background: #fff;
-	border: 1px solid #d4dbe5;
-	border-radius: 12px;
+	background: var(--app-surface, #fff);
+	border: 1px solid var(--app-border);
+	border-radius: var(--app-radius-lg, 0.9rem);
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
+	box-shadow: var(--app-shadow);
 }
 
 .list-header {
@@ -114,7 +139,7 @@
 }
 
 .list-panel li.selected {
-	background: #eef5ff;
+	background: color-mix(in srgb, var(--app-primary) 9%, #fff);
 }
 
 .list-panel button {
@@ -137,18 +162,27 @@
 	display: block;
 	padding: 12px;
 	text-decoration: none;
-	background: #1f6feb;
+	background: var(--app-primary);
 	color: #fff;
 	text-align: center;
 	font-weight: 600;
+	transition: background 0.15s ease;
+}
+.profile-link:hover {
+	background: var(--app-primary-hover);
 }
 
 .back-link {
 	display: inline-block;
 	margin-bottom: 16px;
-	color: #1f6feb;
+	color: var(--app-primary);
 	text-decoration: none;
 	font-weight: 600;
+	transition: color 0.15s ease;
+}
+.back-link:hover {
+	color: var(--app-primary-hover);
+	text-decoration: underline;
 }
 
 .provider-marker .provider-marker-inner {
@@ -156,13 +190,13 @@
 	height: 34px;
 	border-radius: 999px;
 	background: #fff;
-	border: 2px solid #2766d8;
+	border: 2px solid var(--app-primary);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
 	font-size: 16px;
-	color: #2766d8;
+	color: var(--app-primary);
 }
 
 .popup {
@@ -180,7 +214,7 @@
 }
 
 .popup a {
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 600;
 }
 
@@ -198,10 +232,11 @@
 }
 
 .profile-card {
-	background: #fff;
-	border: 1px solid #d4dbe5;
+	background: var(--app-surface, #fff);
+	border: 1px solid var(--app-border);
 	border-radius: 16px;
 	padding: 20px;
+	box-shadow: var(--app-shadow);
 }
 
 .profile-hero {
@@ -231,7 +266,7 @@
 
 .profile-type {
 	margin: 6px 0 10px;
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 600;
 	text-transform: capitalize;
 }
@@ -313,9 +348,9 @@
 	margin-top: 12px;
 	padding: 8px 14px;
 	border-radius: 10px;
-	border: 1px solid #1f6feb;
+	border: 1px solid var(--app-primary);
 	background: #fff;
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 600;
 	cursor: pointer;
 }
@@ -348,7 +383,7 @@
 .review-field select,
 .review-field textarea {
 	padding: 10px 12px;
-	border: 1px solid #ced5de;
+	border: 1px solid var(--app-border);
 	border-radius: 10px;
 	font: inherit;
 }
@@ -358,7 +393,7 @@
 	padding: 10px 18px;
 	border: 0;
 	border-radius: 10px;
-	background: #1f6feb;
+	background: var(--app-primary);
 	color: #fff;
 	font-weight: 700;
 	cursor: pointer;
@@ -381,10 +416,11 @@
 
 .auth-page .auth-card {
 	max-width: 420px;
-	background: #fff;
-	border: 1px solid #d4dbe5;
+	background: var(--app-surface, #fff);
+	border: 1px solid var(--app-border);
 	border-radius: 16px;
 	padding: 24px;
+	box-shadow: var(--app-shadow);
 }
 
 .auth-form {
@@ -403,7 +439,7 @@
 
 .auth-field input {
 	padding: 10px 12px;
-	border: 1px solid #ced5de;
+	border: 1px solid var(--app-border);
 	border-radius: 10px;
 	font: inherit;
 }
@@ -412,10 +448,17 @@
 	padding: 12px 18px;
 	border: 0;
 	border-radius: 10px;
-	background: #1f6feb;
+	background: var(--app-primary);
 	color: #fff;
 	font-weight: 700;
 	cursor: pointer;
+	transition: background 0.15s ease, transform 0.1s ease;
+}
+.auth-submit:hover:not(:disabled) {
+	background: var(--app-primary-hover);
+}
+.auth-submit:active:not(:disabled) {
+	transform: translateY(1px);
 }
 
 .auth-submit:disabled {
@@ -435,7 +478,7 @@
 }
 
 .edit-fieldset {
-	border: 1px solid #d4dbe5;
+	border: 1px solid var(--app-border);
 	border-radius: 14px;
 	padding: 16px;
 	margin: 0;
@@ -463,7 +506,7 @@
 .edit-field textarea,
 .edit-field select {
 	padding: 10px 12px;
-	border: 1px solid #ced5de;
+	border: 1px solid var(--app-border);
 	border-radius: 10px;
 	font: inherit;
 }
@@ -472,6 +515,10 @@
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	gap: 12px;
+}
+
+.reception-time-row {
+	align-items: end;
 }
 
 .check-row {
@@ -531,7 +578,7 @@
 	padding: 12px 22px;
 	border: 0;
 	border-radius: 12px;
-	background: #1f6feb;
+	background: var(--app-primary);
 	color: #fff;
 	font-weight: 700;
 	cursor: pointer;
@@ -560,7 +607,7 @@
 
 .bookings-table-wrap {
 	overflow-x: auto;
-	border: 1px solid #d4dbe5;
+	border: 1px solid var(--app-border);
 	border-radius: 12px;
 	background: #fff;
 	margin-top: 16px;
@@ -592,7 +639,7 @@
 }
 
 .bookings-table a {
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 600;
 	text-decoration: none;
 }
@@ -621,7 +668,7 @@
 
 .booking-status.ok {
 	background: #dbeafe;
-	color: #1e40af;
+	color: var(--app-primary-hover);
 }
 
 .booking-status.done {
@@ -644,6 +691,67 @@
 
 .register-provider-page .auth-card {
 	max-width: 720px;
+}
+
+.provider-pick-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 12px;
+	margin-top: 20px;
+}
+
+@media (min-width: 700px) {
+	.provider-pick-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+.provider-pick-card {
+	text-align: left;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 16px 14px;
+	border: 1px solid var(--app-border);
+	border-radius: 12px;
+	background: #f8fafc;
+	cursor: pointer;
+	font: inherit;
+	transition: border-color 0.15s, background 0.15s;
+}
+
+.provider-pick-card:hover {
+	border-color: var(--app-primary);
+	background: #eff6ff;
+}
+
+.provider-pick-card strong {
+	font-size: 1.05rem;
+	color: #0f172a;
+}
+
+.provider-pick-sub {
+	color: #475569;
+	font-size: 0.9rem;
+}
+
+.link-button {
+	background: none;
+	border: 0;
+	padding: 0;
+	color: var(--app-primary);
+	font: inherit;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.link-button:hover {
+	color: #1553b3;
+}
+
+.provider-pick-active {
+	margin: 8px 0 0;
+	color: #1e3a4c;
 }
 
 .book-section {
@@ -821,7 +929,7 @@
 .services-list em {
 	display: block;
 	font-style: normal;
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 600;
 	margin-top: 2px;
 }
@@ -834,7 +942,7 @@
 }
 
 .mini-map-wrap a {
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 600;
 	text-decoration: none;
 }
@@ -846,13 +954,13 @@
 }
 
 .social-list a {
-	color: #1f6feb;
+	color: var(--app-primary);
 	text-decoration: none;
 	font-weight: 600;
 }
 
 .phone-link {
-	color: #1f6feb;
+	color: var(--app-primary);
 	font-weight: 700;
 	text-decoration: none;
 }
@@ -874,7 +982,7 @@
 	border-radius: 12px;
 	font-weight: 700;
 	text-decoration: none;
-	background: #1f6feb;
+	background: var(--app-primary);
 	color: #fff;
 }
 
@@ -936,6 +1044,58 @@
 }
 
 /* Mascotas, explorar, admin jobs */
+.pets-page h1 {
+	margin: 0 0 4px;
+}
+
+.pets-page-header {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 14px;
+	margin: 12px 0 20px;
+}
+
+.pets-page-header-text {
+	min-width: 0;
+}
+
+.pets-register-cta {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	align-self: flex-start;
+	padding: 10px 20px;
+	border-radius: 10px;
+	background: var(--app-primary);
+	color: #fff !important;
+	font-weight: 700;
+	font-size: 0.95rem;
+	text-decoration: none;
+	white-space: nowrap;
+	border: 0;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.pets-register-cta:hover {
+	background: var(--app-primary-hover);
+	color: #fff !important;
+}
+
+@media (min-width: 640px) {
+	.pets-page-header {
+		flex-direction: row;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 20px;
+	}
+
+	.pets-register-cta {
+		margin-top: 2px;
+		flex-shrink: 0;
+	}
+}
+
 .pets-list {
 	list-style: none;
 	padding: 0;
@@ -945,14 +1105,20 @@
 	display: flex;
 	gap: 12px;
 	align-items: flex-start;
-	margin-bottom: 16px;
+	margin-bottom: 12px;
+}
+.pets-list-card {
+	border: 1px solid var(--app-border);
+	border-radius: 12px;
+	padding: 12px 14px;
+	background: #fff;
 }
 .pet-photo-thumb {
 	width: 64px;
 	height: 64px;
 	object-fit: cover;
 	border-radius: 8px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid var(--app-border);
 }
 .pet-detail-head {
 	display: flex;
@@ -965,7 +1131,7 @@
 	height: 120px;
 	object-fit: cover;
 	border-radius: 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid var(--app-border);
 }
 .pets-list-actions a {
 	margin-right: 8px;
@@ -992,7 +1158,7 @@
 	display: flex;
 	gap: 12px;
 	margin-bottom: 12px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid var(--app-border);
 	padding: 12px;
 	border-radius: 10px;
 	background: #fff;
@@ -1006,7 +1172,7 @@
 .link-like {
 	background: none;
 	border: none;
-	color: #2563eb;
+	color: var(--app-primary);
 	cursor: pointer;
 	text-decoration: underline;
 	padding: 0;
@@ -1015,7 +1181,7 @@
 .owner-profile-img {
 	max-height: 140px;
 	border-radius: 10px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid var(--app-border);
 }
 .encounters-list {
 	margin: 8px 0 0;
@@ -1054,5 +1220,31 @@
 .admin-jobs {
 	margin-bottom: 24px;
 	padding: 12px 0;
-	border-bottom: 1px solid #e5e7eb;
+	border-bottom: 1px solid var(--app-border);
+}
+
+@media (max-width: 1024px) {
+	.filters {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 560px) {
+	.filters {
+		grid-template-columns: 1fr;
+	}
+	.content {
+		grid-template-columns: 1fr;
+		height: auto;
+		min-height: 420px;
+	}
+	.map-panel {
+		min-height: 52vh;
+	}
+	.list-panel {
+		min-height: 240px;
+	}
+	.reception-time-row {
+		grid-template-columns: 1fr;
+	}
 }

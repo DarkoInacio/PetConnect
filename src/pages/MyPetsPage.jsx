@@ -53,17 +53,19 @@ export function MyPetsPage() {
 	}
 
 	return (
-		<div className='page'>
+		<div className='page pets-page'>
 			<Link className='back-link' to='/'>
 				Volver al mapa
 			</Link>
-			<h1>Mis mascotas</h1>
-			<p className='muted'>Registra fichas para agendar en veterinarias y llevar historial clínico.</p>
-			<p>
-				<Link className='save-profile-btn' to='/mascotas/nueva'>
+			<header className='pets-page-header'>
+				<div className='pets-page-header-text'>
+					<h1>Mis mascotas</h1>
+					<p className='muted'>Registra fichas para agendar en veterinarias y llevar historial clínico.</p>
+				</div>
+				<Link className='pets-register-cta' to='/mascotas/nueva'>
 					Registrar mascota
 				</Link>
-			</p>
+			</header>
 
 			{loading ? <p>Cargando…</p> : null}
 			{error ? <p className='error'>{error}</p> : null}
@@ -74,7 +76,7 @@ export function MyPetsPage() {
 				{pets.map((p) => {
 					const id = String(p._id || p.id);
 					return (
-						<li key={id} className='pets-list-item'>
+						<li key={id} className='pets-list-item pets-list-card'>
 							<PetPhoto petId={id} alt={p.name} />
 							<div>
 								<strong>{p.name}</strong>

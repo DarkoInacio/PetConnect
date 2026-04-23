@@ -36,8 +36,8 @@ export function ProvidersExplorePage() {
 			<Link className='back-link' to='/'>
 				Mapa
 			</Link>
-			<h1>Explorar proveedores</h1>
-			<p className='muted'>Filtros alineados con GET /api/proveedores/buscar</p>
+			<h1>Explorar clínicas, paseo y cuidado</h1>
+			<p className='muted'>Búsqueda de proveedores (veterinarias, paseadores, cuidadores)</p>
 
 			<div className='filters explore-filters'>
 				<label>
