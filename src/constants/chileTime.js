@@ -58,6 +58,23 @@ export function formatTimeInChile(isoOrDate) {
  * @param {string|Date|undefined} endAt
  * @returns {string}
  */
+/**
+ * Fecha calendario (Año-mes-día) en la zona de Chile, para encasillar eventos.
+ * @param {string|Date|number|undefined} isoOrDate
+ * @returns {string | null} YYYY-MM-DD o null
+ */
+export function getYmdInChile(isoOrDate) {
+	if (isoOrDate == null) return null;
+	const d = new Date(isoOrDate);
+	if (Number.isNaN(d.getTime())) return null;
+	return new Intl.DateTimeFormat('en-CA', {
+		timeZone: CL_TZ,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit'
+	}).format(d);
+}
+
 export function formatChileDateTimeRange(startAt, endAt) {
 	if (!startAt) return '—';
 	try {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { Calendar } from 'lucide-react';
+import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMyBookings } from '../services/bookings';
 import { getProviderProfilePath, withResenaCitaParam } from '../services/providers';
@@ -97,6 +99,32 @@ function appointmentCanOpenProfileResenaLink(row) {
 	if (row.kind !== 'appointment') return false;
 	if (['cancelled_by_owner', 'cancelled_by_provider'].includes(row.status)) return false;
 	return true;
+}
+
+function getBookingRowMeta(row) {
+	const isLegacy = row.kind === 'cita_legacy';
+	const prov = isLegacy ? row.proveedor : row.provider;
+	const href = providerLinkTarget(prov);
+	const statusLabel = isLegacy
+		? CITA_ESTADO_LABELS[row.status] || row.status
+		: APPOINTMENT_STATUS_LABELS[row.status] || row.status;
+	const originLabel = isLegacy
+		? 'Cita (histórico)'
+		: BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource || '—';
+	let detail = '—';
+	if (isLegacy) {
+		const m = row.mascota;
+		detail = [row.servicio, m ? `${m.nombre} (${m.especie})` : null]
+			.filter(Boolean)
+			.join(' · ');
+	} else {
+		const pet = row.pet;
+		const petStr = pet?.name
+			? `${pet.name}${pet.species ? ` (${pet.species})` : ''}`
+			: null;
+		detail = [petStr, row.reason].filter(Boolean).join(' · ') || '—';
+	}
+	return { isLegacy, prov, href, statusLabel, originLabel, detail };
 }
 
 export function MyBookingsPage() {
@@ -279,10 +307,54 @@ export function MyBookingsPage() {
 		}
 	}
 
+	function renderOwnerBookingActions(row) {
+		const showReview = row.kind === 'appointment' && appointmentShowsReviewButton(row);
+		const hasAny =
+			(row.kind === 'appointment' && canCancelOwner(row)) ||
+			(row.kind === 'cita_legacy' && canCancelOwner(row)) ||
+			canRescheduleLegacy(row) ||
+			showReview;
+		return (
+			<>
+				{canCancelOwner(row) && row.kind === 'appointment' ? (
+					<button type="button" className="btn-reject btn-sm" onClick={() => onCancelAppointment(row)}>
+						Cancelar reserva
+					</button>
+				) : null}
+				{canCancelOwner(row) && row.kind === 'cita_legacy' ? (
+					<button type="button" className="btn-reject btn-sm" onClick={() => onCancelCitaLegacy(row)}>
+						Cancelar cita
+					</button>
+				) : null}
+				{canRescheduleLegacy(row) ? (
+					<button type="button" className="btn-sm" onClick={() => onRescheduleCita(row)}>
+						Reagendar
+					</button>
+				) : null}
+				{showReview ? (
+					<button
+						type="button"
+						className="btn-sm"
+						onClick={() => {
+							setOwnerReviewRow(row);
+						}}
+					>
+						Reseña
+					</button>
+				) : null}
+				{!hasAny ? <span className="muted">—</span> : null}
+			</>
+		);
+	}
+
 	if (authLoading) {
 		return (
-			<div className='page'>
-				<p>Cargando…</p>
+			<div className="page">
+				<div className="page-surface" role="status" aria-live="polite">
+					<p className="muted" style={{ margin: 0 }}>
+						Cargando…
+					</p>
+				</div>
 			</div>
 		);
 	}
@@ -293,11 +365,17 @@ export function MyBookingsPage() {
 
 	if (user.role !== 'dueno') {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
-					Volver al mapa
-				</Link>
-				<p className='error'>Mis reservas solo está disponible para cuentas de dueño.</p>
+			<div className="page">
+				<div className="auth-page-stack" style={{ maxWidth: '28rem' }}>
+					<Link className="back-link" to="/">
+						← Volver al mapa
+					</Link>
+					<div className="page-surface">
+						<p className="error" style={{ margin: 0 }} role="alert">
+							Mis reservas solo está disponible para cuentas de dueño.
+						</p>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -305,149 +383,160 @@ export function MyBookingsPage() {
 	const items = Array.isArray(data?.items) ? data.items : [];
 
 	return (
-		<div className='page bookings-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
+		<div className="page bookings-page">
+			<Link className="back-link" to="/">
+				← Volver al mapa
 			</Link>
-			<h1>Mis reservas</h1>
-			<p className='muted'>
-				Agenda, solicitudes a paseadores/cuidadores y citas anteriores en un solo listado.
-			</p>
-			<p className='muted' style={{ maxWidth: '42rem' }}>
-				Para reseñar, entra al perfil del servicio con <strong>Ingresar a la clínica y dejar reseña</strong>{' '}
-				(agenda o paseo/cuidado) o abre <strong>Reseña</strong> en la fila. Las <strong>
-					Cita (histórico)
-				</strong>{' '}
-				no usan el mismo sistema.
-			</p>
-			<p className='muted'>
-				<Link to='/citas'>Próximas citas (legacy)</Link> · <Link to='/mi-perfil'>Mi perfil</Link> ·{' '}
-				<Link to='/mascotas'>Mis mascotas</Link>
-			</p>
+			<div className="page-surface page-surface--bookings">
+				<header className="page-hero">
+					<h1>Mis reservas</h1>
+					<p>Agenda, solicitudes a paseadores o cuidadores e historial de citas, todo en un solo lugar.</p>
+				</header>
+				<OwnerSubnav />
+				<p className="muted" style={{ maxWidth: '42rem', marginTop: '0.5rem' }}>
+					Para reseñar, abre <strong>Reseña</strong> o usa <strong>Ingresar a la clínica y dejar reseña</strong> en
+					agenda o paseo/cuidado. Las <strong>Cita (histórico)</strong> no usan el mismo sistema.
+				</p>
 
-			{loading ? <p>Cargando reservas…</p> : null}
-			{error ? <p className='error'>{error}</p> : null}
-			{actionMsg ? <p className='review-success'>{actionMsg}</p> : null}
+				{loading ? (
+					<p className="muted" style={{ margin: 0 }} role="status" aria-live="polite">
+						Cargando reservas…
+					</p>
+				) : null}
+				{error ? (
+					<p className="error" role="alert" aria-live="assertive" style={{ margin: '0 0 1rem' }}>
+						{error}
+					</p>
+				) : null}
+				{actionMsg ? <p className="review-success">{actionMsg}</p> : null}
 
-			{!loading && !error && items.length === 0 ? (
-				<p className='bookings-empty'>Aún no tienes reservas registradas.</p>
-			) : null}
+				{!loading && !error && items.length === 0 ? (
+					<div className="bookings-empty-state" role="status">
+						<Calendar
+							className="bookings-empty-ico"
+							aria-hidden
+							strokeWidth={1.5}
+							size={40}
+						/>
+						<p className="bookings-empty-title">Aún no tienes reservas</p>
+						<p style={{ margin: 0, fontSize: '0.95rem' }}>
+							Explora el mapa, elige un proveedor y agenda tu primera cita o servicio.
+						</p>
+					</div>
+				) : null}
 
-			{!loading && items.length > 0 ? (
-				<div className='bookings-table-wrap'>
-					<table className='bookings-table'>
-						<thead>
-							<tr>
-								<th>Fecha</th>
-								<th>Origen</th>
-								<th>Proveedor</th>
-								<th>Detalle</th>
-								<th>Estado</th>
-								<th>Acciones</th>
-							</tr>
-						</thead>
-						<tbody>
-							{items.map((row) => {
-								const isLegacy = row.kind === 'cita_legacy';
-								const prov = isLegacy ? row.proveedor : row.provider;
-								const href = providerLinkTarget(prov);
-								const aid = appointmentId(row);
-								const resenaPath =
-									!isLegacy && href && aid
-										? withResenaCitaParam(href, aid)
-										: null;
-								const statusLabel = isLegacy
-									? CITA_ESTADO_LABELS[row.status] || row.status
-									: APPOINTMENT_STATUS_LABELS[row.status] || row.status;
-								const originLabel = isLegacy
-									? 'Cita (histórico)'
-									: BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource || '—';
+				{!loading && items.length > 0 ? (
+					<div className="bookings-cards bookings-cards--mobile" aria-label="Vista móvil de reservas">
+						{items.map((row) => {
+							const m = getBookingRowMeta(row);
+							const aid = appointmentId(row);
+							const resenaPath =
+								!m.isLegacy && m.href && aid
+									? withResenaCitaParam(m.href, aid)
+									: null;
+							return (
+								<article
+									key={`card-${row.kind}-${aid || row.id || row._id || 'row'}`}
+									className="booking-card"
+								>
+									<p className="booking-card__label">Fecha y hora</p>
+									<p className="booking-card__value">{formatRange(row.startAt, row.endAt)}</p>
+									<p className="booking-card__label">Proveedor</p>
+									<div className="booking-card__value">
+										{m.href ? (
+											<div className="bookings-provider-cell">
+												<Link to={m.href}>{providerLabel(m.prov)}</Link>
+												{resenaPath && appointmentCanOpenProfileResenaLink(row) ? (
+													<div className="bookings-ingress">
+														<Link to={resenaPath} className="bookings-ingress-link">
+															Ingresar a la clínica y dejar reseña
+														</Link>
+													</div>
+												) : null}
+											</div>
+										) : (
+											providerLabel(m.prov)
+										)}
+									</div>
+									<p className="booking-card__label">Origen</p>
+									<p className="booking-card__value">{m.originLabel}</p>
+									<p className="booking-card__label">Detalle</p>
+									<p className="booking-card__value">{m.detail}</p>
+									<p className="booking-card__label">Estado</p>
+									<p className="booking-card__value">
+										<span className={statusBadgeClass(row.status)}>{m.statusLabel}</span>
+									</p>
+									<div className="booking-card__actions owner-booking-actions">
+										{renderOwnerBookingActions(row)}
+									</div>
+								</article>
+							);
+						})}
+					</div>
+				) : null}
 
-								let detail = '—';
-								if (isLegacy) {
-									const m = row.mascota;
-									detail = [row.servicio, m ? `${m.nombre} (${m.especie})` : null]
-										.filter(Boolean)
-										.join(' · ');
-								} else {
-									const pet = row.pet;
-									const petStr = pet?.name
-										? `${pet.name}${pet.species ? ` (${pet.species})` : ''}`
-										: null;
-									detail = [petStr, row.reason].filter(Boolean).join(' · ') || '—';
-								}
-
-								return (
-									<tr key={`${row.kind}-${appointmentId(row) || row.id || row._id || 'row'}`}>
-										<td>{formatRange(row.startAt, row.endAt)}</td>
-										<td>{originLabel}</td>
-										<td>
-											{href ? (
-												<div className="bookings-provider-cell">
-													<Link to={href}>{providerLabel(prov)}</Link>
-													{!isLegacy && resenaPath && appointmentCanOpenProfileResenaLink(row) ? (
-														<div className="bookings-ingress">
-															<Link to={resenaPath} className="bookings-ingress-link">
-																Ingresar a la clínica y dejar reseña
-															</Link>
-														</div>
-													) : null}
-												</div>
-											) : (
-												providerLabel(prov)
-											)}
-										</td>
-										<td className='bookings-detail'>{detail}</td>
-										<td>
-											<span className={statusBadgeClass(row.status)}>{statusLabel}</span>
-										</td>
-										<td className='owner-booking-actions'>
-											{canCancelOwner(row) && row.kind === 'appointment' ? (
-												<button type='button' className='btn-reject btn-sm' onClick={() => onCancelAppointment(row)}>
-													Cancelar reserva
-												</button>
-											) : null}
-											{canCancelOwner(row) && row.kind === 'cita_legacy' ? (
-												<button type='button' className='btn-reject btn-sm' onClick={() => onCancelCitaLegacy(row)}>
-													Cancelar cita
-												</button>
-											) : null}
-											{canRescheduleLegacy(row) ? (
-												<button type='button' className='btn-sm' onClick={() => onRescheduleCita(row)}>
-													Reagendar
-												</button>
-											) : null}
-											{row.kind === 'appointment' && appointmentShowsReviewButton(row) ? (
-												<button
-													type='button'
-													className='btn-sm'
-													onClick={() => {
-														setOwnerReviewRow(row);
-													}}
-												>
-													Reseña
-												</button>
-											) : null}
-											{!(
-												(row.kind === 'appointment' && canCancelOwner(row)) ||
-												(row.kind === 'cita_legacy' && canCancelOwner(row)) ||
-												canRescheduleLegacy(row) ||
-												(row.kind === 'appointment' && appointmentShowsReviewButton(row))
-											) ? (
-												<span className='muted'>—</span>
-											) : null}
-										</td>
-									</tr>
-								);
-							})}
-						</tbody>
-					</table>
-				</div>
-			) : null}
+				{!loading && items.length > 0 ? (
+					<div
+						className="bookings-table-wrap bookings-table-desktop"
+						role="region"
+						aria-label="Tabla de reservas"
+					>
+						<table className="bookings-table">
+							<thead>
+								<tr>
+									<th scope="col">Fecha</th>
+									<th scope="col">Origen</th>
+									<th scope="col">Proveedor</th>
+									<th scope="col">Detalle</th>
+									<th scope="col">Estado</th>
+									<th scope="col">Acciones</th>
+								</tr>
+							</thead>
+							<tbody>
+								{items.map((row) => {
+									const m = getBookingRowMeta(row);
+									const aid = appointmentId(row);
+									const resenaPath =
+										!m.isLegacy && m.href && aid
+											? withResenaCitaParam(m.href, aid)
+											: null;
+									return (
+										<tr key={`${row.kind}-${aid || row.id || row._id || 'row'}`}>
+											<td>{formatRange(row.startAt, row.endAt)}</td>
+											<td>{m.originLabel}</td>
+											<td>
+												{m.href ? (
+													<div className="bookings-provider-cell">
+														<Link to={m.href}>{providerLabel(m.prov)}</Link>
+														{resenaPath && appointmentCanOpenProfileResenaLink(row) ? (
+															<div className="bookings-ingress">
+																<Link to={resenaPath} className="bookings-ingress-link">
+																	Ingresar a la clínica y dejar reseña
+																</Link>
+															</div>
+														) : null}
+													</div>
+												) : (
+													providerLabel(m.prov)
+												)}
+											</td>
+											<td className="bookings-detail">{m.detail}</td>
+											<td>
+												<span className={statusBadgeClass(row.status)}>{m.statusLabel}</span>
+											</td>
+											<td className="owner-booking-actions">{renderOwnerBookingActions(row)}</td>
+										</tr>
+									);
+								})}
+							</tbody>
+						</table>
+					</div>
+				) : null}
+			</div>
 
 			{import.meta.env.DEV && data?.note ? (
-				<p className='bookings-api-note muted'>
-					<small>Nota API: {data.note}</small>
+				<p className="bookings-api-note--dev">
+					<strong>Nota (solo desarrollo):</strong> {data.note}
 				</p>
 			) : null}
 

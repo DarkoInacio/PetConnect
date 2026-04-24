@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
 import { listMisCitas, listProximasCitas } from '../services/citas';
 
@@ -17,10 +18,7 @@ export function CitasLegacyPage() {
 		(async () => {
 			try {
 				setLoading(true);
-				const [p, t] = await Promise.all([
-					listProximasCitas(c.signal),
-					listMisCitas({}, c.signal)
-				]);
+				const [p, t] = await Promise.all([listProximasCitas(c.signal), listMisCitas({}, c.signal)]);
 				setProximas(Array.isArray(p.citas) ? p.citas : []);
 				setTodas(Array.isArray(t.citas) ? t.citas : []);
 			} catch (err) {
@@ -35,23 +33,31 @@ export function CitasLegacyPage() {
 
 	if (authLoading || loading) {
 		return (
-			<div className='page'>
-				<p>Cargando…</p>
+			<div className="page">
+				<div className="page-surface" role="status" aria-live="polite">
+					<p className="muted" style={{ margin: 0 }}>
+						Cargando citas…
+					</p>
+				</div>
 			</div>
 		);
 	}
 
 	if (!user) {
-		return <Navigate to='/login' replace state={{ from: '/citas' }} />;
+		return <Navigate to="/login" replace state={{ from: '/citas' }} />;
 	}
 
 	if (user.role !== 'dueno') {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
-					Inicio
+			<div className="page">
+				<Link className="back-link" to="/">
+					← Inicio
 				</Link>
-				<p className='error'>Solo dueños.</p>
+				<div className="page-surface">
+					<p className="error" style={{ margin: 0 }} role="alert">
+						Solo dueños.
+					</p>
+				</div>
 			</div>
 		);
 	}
@@ -59,36 +65,69 @@ export function CitasLegacyPage() {
 	const rows = tab === 'proximas' ? proximas : todas;
 
 	return (
-		<div className='page'>
-			<Link className='back-link' to='/mis-reservas'>
-				Mis reservas (unificado)
+		<div className="page">
+			<Link className="back-link" to="/">
+				← Volver al mapa
 			</Link>
-			<h1>Citas (modelo legacy)</h1>
-			<p className='muted'>GET /api/citas/proximas y /api/citas/mis-citas</p>
-			{error ? <p className='error'>{error}</p> : null}
-			<p>
-				<button type='button' className={tab === 'proximas' ? 'save-profile-btn' : 'btn-sm'} onClick={() => setTab('proximas')}>
-					Próximas
-				</button>{' '}
-				<button type='button' className={tab === 'todas' ? 'save-profile-btn' : 'btn-sm'} onClick={() => setTab('todas')}>
-					Todas
-				</button>
-			</p>
-			<ul className='citas-legacy-list'>
-				{rows.map((c) => (
-					<li key={String(c._id)}>
-						<strong>{c.servicio}</strong> · {c.estado} ·{' '}
-						{new Date(c.fecha).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' })}
-						{c.proveedor ? (
-							<span className='muted'>
-								{' '}
-								· {c.proveedor.name} {c.proveedor.lastName}
-							</span>
-						) : null}
-					</li>
-				))}
-			</ul>
-			{rows.length === 0 ? <p className='muted'>Sin registros.</p> : null}
+			<div className="page-surface page-surface--wide">
+				<header className="page-hero">
+					<h1>Citas (modelo anterior)</h1>
+					<p>
+						Listado heredado del sistema de citas. Las nuevas reservas por agenda aparecen también en{' '}
+						<Link to="/mis-reservas">Mis reservas</Link>.
+					</p>
+				</header>
+				<OwnerSubnav />
+				{import.meta.env.DEV ? (
+					<p className="muted" style={{ fontSize: '0.85rem', margin: '0 0 0.75rem' }}>
+						Desarrollo: <code>GET /api/citas/proximas</code>, <code>GET /api/citas/mis-citas</code>
+					</p>
+				) : null}
+				{error ? (
+					<p className="error" role="alert" style={{ margin: '0 0 1rem' }}>
+						{error}
+					</p>
+				) : null}
+				<div className="citas-legacy-tabs" role="tablist" aria-label="Tipo de listado de citas">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={tab === 'proximas'}
+						id="tab-citas-proximas"
+						onClick={() => setTab('proximas')}
+					>
+						Próximas
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={tab === 'todas'}
+						id="tab-citas-todas"
+						onClick={() => setTab('todas')}
+					>
+						Todas
+					</button>
+				</div>
+				<ul className="citas-legacy-list" role="tabpanel" aria-labelledby={tab === 'proximas' ? 'tab-citas-proximas' : 'tab-citas-todas'}>
+					{rows.map((c) => (
+						<li key={String(c._id)}>
+							<strong>{c.servicio}</strong> · {c.estado} ·{' '}
+							{new Date(c.fecha).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' })}
+							{c.proveedor ? (
+								<span className="muted">
+									{' '}
+									· {c.proveedor.name} {c.proveedor.lastName}
+								</span>
+							) : null}
+						</li>
+					))}
+				</ul>
+				{rows.length === 0 ? (
+					<p className="muted" style={{ margin: '0.5rem 0 0' }}>
+						Sin registros en este listado.
+					</p>
+				) : null}
+			</div>
 		</div>
 	);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
 import { listPets } from '../services/pets';
 import { PetPhoto } from '../components/PetPhoto';
@@ -31,8 +32,12 @@ export function MyPetsPage() {
 
 	if (authLoading) {
 		return (
-			<div className='page'>
-				<p>Cargando…</p>
+			<div className="page">
+				<div className="page-surface" role="status" aria-live="polite">
+					<p className="muted" style={{ margin: 0 }}>
+						Cargando…
+					</p>
+				</div>
 			</div>
 		);
 	}
@@ -43,36 +48,42 @@ export function MyPetsPage() {
 
 	if (user.role !== 'dueno') {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
-					Inicio
+			<div className="page">
+				<Link className="back-link" to="/">
+					← Inicio
 				</Link>
-				<p className='error'>Las mascotas están disponibles para cuentas de dueño.</p>
+				<div className="page-surface">
+					<p className="error" style={{ margin: 0 }} role="alert">
+						Las mascotas están disponibles para cuentas de dueño.
+					</p>
+				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className='page pets-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
+		<div className="page pets-page">
+			<Link className="back-link" to="/">
+				← Volver al mapa
 			</Link>
-			<header className='pets-page-header'>
-				<div className='pets-page-header-text'>
+			<div className="page-surface page-surface--wide">
+			<header className="pets-page-header">
+				<div className="pets-page-header-text">
 					<h1>Mis mascotas</h1>
-					<p className='muted'>Registra fichas para agendar en veterinarias y llevar historial clínico.</p>
+					<p className="muted">Registra fichas para agendar en veterinarias y llevar historial clínico.</p>
 				</div>
-				<Link className='pets-register-cta' to='/mascotas/nueva'>
+				<Link className="pets-register-cta" to="/mascotas/nueva">
 					Registrar mascota
 				</Link>
 			</header>
+			<OwnerSubnav />
 
-			{loading ? <p>Cargando…</p> : null}
-			{error ? <p className='error'>{error}</p> : null}
+			{loading ? <p className="muted">Cargando…</p> : null}
+			{error ? <p className="error" role="alert" aria-live="assertive">{error}</p> : null}
 
-			{!loading && pets.length === 0 ? <p className='muted'>Aún no tienes mascotas registradas.</p> : null}
+			{!loading && pets.length === 0 ? <p className="muted">Aún no tienes mascotas registradas.</p> : null}
 
-			<ul className='pets-list'>
+			<ul className="pets-list">
 				{pets.map((p) => {
 					const id = String(p._id || p.id);
 					return (
@@ -100,6 +111,7 @@ export function MyPetsPage() {
 					);
 				})}
 			</ul>
+			</div>
 		</div>
 	);
 }

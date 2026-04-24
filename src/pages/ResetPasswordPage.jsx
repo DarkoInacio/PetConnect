@@ -33,24 +33,34 @@ export function ResetPasswordPage() {
 
 	if (missingParams) {
 		return (
-			<div className='page auth-page'>
-				<Link className='back-link' to='/login'>
-					Volver al login
-				</Link>
-				<p className='error'>Enlace incompleto. Solicita un nuevo correo de recuperación.</p>
+			<div className="page auth-page">
+				<div className="auth-page-stack">
+					<Link className="back-link" to="/login">
+						← Volver al login
+					</Link>
+					<div className="auth-card" role="alert">
+						<p className="error" style={{ margin: 0 }}>
+							Enlace incompleto. Solicita un nuevo correo de recuperación.
+						</p>
+					</div>
+				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className='page auth-page'>
-			<Link className='back-link' to='/login'>
-				Volver al login
-			</Link>
-			<section className='auth-card'>
-				<h1>Nueva contraseña</h1>
-				<p className='muted'>{email}</p>
-				<form className='auth-form' onSubmit={onSubmit}>
+		<div className="page auth-page">
+			<div className="auth-page-stack">
+				<Link className="back-link" to="/login">
+					← Volver al login
+				</Link>
+				<section className="auth-card" aria-labelledby="reset-title">
+					<div className="auth-card-eyebrow">Nueva clave</div>
+					<h1 id="reset-title">Nueva contraseña</h1>
+					<p className="muted">
+						<strong>Correo:</strong> {email}
+					</p>
+					<form className="auth-form" onSubmit={onSubmit}>
 					<label className='auth-field'>
 						<span>Nueva contraseña</span>
 						<input
@@ -64,10 +74,15 @@ export function ResetPasswordPage() {
 					<button type='submit' className='auth-submit' disabled={submitting}>
 						{submitting ? 'Guardando…' : 'Guardar'}
 					</button>
-					{message ? <p className='review-success'>{message}</p> : null}
-					{error ? <p className='error'>{error}</p> : null}
+					{message ? <p className="review-success">{message}</p> : null}
+					{error ? (
+						<p className="error" role="alert" aria-live="assertive">
+							{error}
+						</p>
+					) : null}
 				</form>
 			</section>
+			</div>
 		</div>
 	);
 }

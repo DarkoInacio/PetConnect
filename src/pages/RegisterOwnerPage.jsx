@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { AuthModeSwitch } from '../components/AuthModeSwitch';
 import { setStoredAuthToken } from '../services/api';
 import { registerOwner } from '../services/authForms';
 
@@ -39,13 +40,16 @@ export function RegisterOwnerPage() {
 	}
 
 	return (
-		<div className='page auth-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
-			</Link>
-			<section className='auth-card'>
-				<h1>Crear cuenta dueño</h1>
-				<form className='auth-form' onSubmit={onSubmit}>
+		<div className="page auth-page">
+			<div className="auth-page-stack">
+				<Link className="back-link" to="/">
+					← Volver al mapa
+				</Link>
+				<section className="auth-card" aria-labelledby="reg-owner-title">
+					<div className="auth-card-eyebrow">Nueva cuenta</div>
+					<h1 id="reg-owner-title">Crear cuenta dueño</h1>
+					<p className="muted auth-card-lead">Regístrate para reservar citas y guardar el historial de salud de tus mascotas.</p>
+					<form className="auth-form" onSubmit={onSubmit}>
 					<label className='auth-field'>
 						<span>Nombre</span>
 						<input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -69,18 +73,21 @@ export function RegisterOwnerPage() {
 					<button type='submit' className='auth-submit' disabled={submitting}>
 						{submitting ? 'Creando…' : 'Registrarme'}
 					</button>
-					{error ? <p className='error'>{error}</p> : null}
-					<div className='auth-footer-links'>
-						<p className='muted' style={{ margin: 0 }}>
-							¿Ya tienes cuenta? <Link to='/login'>Iniciar sesión</Link>
+					{error ? (
+						<p className="error" role="alert" aria-live="assertive">
+							{error}
 						</p>
-						<p className='muted' style={{ margin: '10px 0 0' }}>
+					) : null}
+					<AuthModeSwitch mode="register" />
+					<div className="auth-footer-links" style={{ borderTop: 'none', marginTop: 0, paddingTop: '0.75rem' }}>
+						<p className="muted" style={{ margin: 0 }}>
 							¿Ofreces servicio veterinario, paseo o cuidado?{' '}
-							<Link to='/registro-proveedor'>Alta de proveedores</Link>
+							<Link to="/registro-proveedor">Alta de proveedores</Link>
 						</p>
 					</div>
 				</form>
 			</section>
+			</div>
 		</div>
 	);
 }

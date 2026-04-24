@@ -1,10 +1,25 @@
 import { api } from './api';
 
-export async function fetchAvailableSlots(providerId, dateYmd, signal) {
-	const { data } = await api.get(`/appointments/providers/${providerId}/available-slots`, {
-		params: dateYmd ? { date: dateYmd } : {},
-		signal
-	});
+/**
+ * Uso: fetchAvailableSlots(pid, ymd) | fetchAvailableSlots(pid, ymd, signal) | fetchAvailableSlots(pid, ymd, { clinicServiceId }, signal)
+ * @param {string} providerId
+ * @param {string|undefined} dateYmd
+ * @param {{ clinicServiceId?: string }|AbortSignal|undefined} [optionsOrSignal]
+ * @param {AbortSignal|undefined} [signal]
+ */
+export async function fetchAvailableSlots(providerId, dateYmd, optionsOrSignal, signal) {
+	let options = null;
+	/** @type {AbortSignal|undefined} */ let sig;
+	if (optionsOrSignal && typeof optionsOrSignal.addEventListener === 'function') {
+		sig = optionsOrSignal;
+	} else {
+		options = optionsOrSignal;
+		sig = signal;
+	}
+	const params = {};
+	if (dateYmd) params.date = dateYmd;
+	if (options && options.clinicServiceId) params.clinicServiceId = options.clinicServiceId;
+	const { data } = await api.get(`/appointments/providers/${providerId}/available-slots`, { params, signal: sig });
 	return data;
 }
 

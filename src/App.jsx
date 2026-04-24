@@ -8,6 +8,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { MyPetsPage } from './pages/MyPetsPage';
+import { OfferProviderServicesPage } from './pages/OfferProviderServicesPage';
 import { OwnerProfilePage } from './pages/OwnerProfilePage';
 import { PetDetailPage } from './pages/PetDetailPage';
 import { PetEncounterDetailPage } from './pages/PetEncounterDetailPage';
@@ -29,7 +30,11 @@ import './App.css';
 function App() {
 	return (
 		<BrowserRouter>
+			<a className="skip-to-main" href="#contenido-principal">
+				Saltar al contenido
+			</a>
 			<AppLayoutHeader />
+			<main id="contenido-principal" className="app-main" tabIndex={-1}>
 			<Routes>
 				<Route path='/' element={<ProvidersMapPage />} />
 				<Route path='/explorar' element={<ProvidersExplorePage />} />
@@ -44,6 +49,7 @@ function App() {
 				<Route path='/mis-reservas' element={<MyBookingsPage />} />
 				<Route path='/citas' element={<CitasLegacyPage />} />
 				<Route path='/mi-perfil' element={<OwnerProfilePage />} />
+				<Route path='/mi-perfil/ofrecer-servicios' element={<OfferProviderServicesPage />} />
 				<Route path='/mascotas/nueva' element={<PetFormPage />} />
 				<Route path='/mascotas/:petId/edit' element={<PetFormPage />} />
 				<Route path='/mascotas/:petId/ficha' element={<PetMedicalPage />} />
@@ -58,6 +64,7 @@ function App() {
 				<Route path='/proveedores/perfil/:tipo/:slug' element={<ProviderProfilePage />} />
 				<Route path='/proveedores/:id' element={<ProviderProfilePage />} />
 			</Routes>
+			</main>
 		</BrowserRouter>
 	);
 }

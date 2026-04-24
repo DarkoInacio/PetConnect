@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
+import { hasRole } from '../lib/userRoles';
 import { resolveBackendAssetUrl } from '../services/api';
 import { updateMyProfile } from '../services/profile';
 
@@ -15,7 +17,7 @@ export function OwnerProfilePage() {
 	const [msg, setMsg] = useState('');
 
 	useEffect(() => {
-		if (user && user.role === 'dueno') {
+		if (user && hasRole(user, 'dueno')) {
 			setName(user.name || '');
 			setLastName(user.lastName || '');
 			setPhone(user.phone || '');
@@ -24,8 +26,12 @@ export function OwnerProfilePage() {
 
 	if (loading) {
 		return (
-			<div className='page'>
-				<p>Cargando…</p>
+			<div className="page">
+				<div className="page-surface" role="status" aria-live="polite">
+					<p className="muted" style={{ margin: 0 }}>
+						Cargando…
+					</p>
+				</div>
 			</div>
 		);
 	}
@@ -34,13 +40,17 @@ export function OwnerProfilePage() {
 		return <Navigate to='/login' replace state={{ from: '/mi-perfil' }} />;
 	}
 
-	if (user.role !== 'dueno') {
+	if (!hasRole(user, 'dueno')) {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
-					Inicio
+			<div className="page">
+				<Link className="back-link" to="/">
+					← Inicio
 				</Link>
-				<p className='error'>Esta sección es para dueños. Los proveedores usan «Editar perfil» en el panel.</p>
+				<div className="page-surface">
+					<p className="error" style={{ margin: 0 }} role="alert">
+						Esta sección es para cuentas con rol de dueño. Los proveedores usan «Editar perfil» en el panel.
+					</p>
+				</div>
 			</div>
 		);
 	}
@@ -70,17 +80,29 @@ export function OwnerProfilePage() {
 	const img = user.profileImage ? resolveBackendAssetUrl(user.profileImage) : null;
 
 	return (
-		<div className='page provider-edit-page'>
-			<Link className='back-link' to='/'>
-				Inicio
+		<div className="page provider-edit-page">
+			<Link className="back-link" to="/">
+				← Volver al mapa
 			</Link>
-			<h1>Mi perfil</h1>
-			{img ? (
-				<p>
-					<img src={img} alt='' className='owner-profile-img' />
+			<div className="page-surface page-surface--wide">
+			<header className="page-hero" style={{ marginBottom: '0.5rem' }}>
+				<h1>Mi perfil</h1>
+				<p>Datos de contacto y foto. Úsalo en reservas y comprobantes.</p>
+			</header>
+			<OwnerSubnav />
+			{hasRole(user, 'dueno') && !hasRole(user, 'proveedor') ? (
+				<p className="hint muted" style={{ margin: '0 0 0.75rem' }}>
+					<strong>¿Quieres ofrecer servicios con el mismo correo?</strong>{' '}
+					<Link to="/mi-perfil/ofrecer-servicios">Solicitar ser proveedor</Link> (paseo, cuidado o
+					veterinaria; requiere aprobación).
 				</p>
 			) : null}
-			<form className='edit-fieldset' onSubmit={onSubmit}>
+			{img ? (
+				<p>
+					<img src={img} alt="" className="owner-profile-img" />
+				</p>
+			) : null}
+			<form className="edit-fieldset" onSubmit={onSubmit}>
 				<label className='edit-field'>
 					<span>Nombre</span>
 					<input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -97,12 +119,13 @@ export function OwnerProfilePage() {
 					<span>Foto de perfil (opcional)</span>
 					<input type='file' accept='image/*' onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
 				</label>
-				{error ? <p className='error'>{error}</p> : null}
-				{msg ? <p className='review-success'>{msg}</p> : null}
-				<button type='submit' className='save-profile-btn' disabled={saving}>
+				{error ? <p className="error" role="alert" aria-live="assertive">{error}</p> : null}
+				{msg ? <p className="review-success">{msg}</p> : null}
+				<button type="submit" className="save-profile-btn" disabled={saving}>
 					{saving ? 'Guardando…' : 'Guardar'}
 				</button>
 			</form>
+			</div>
 		</div>
 	);
 }

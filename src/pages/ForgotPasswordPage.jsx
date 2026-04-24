@@ -24,13 +24,16 @@ export function ForgotPasswordPage() {
 	}
 
 	return (
-		<div className='page auth-page'>
-			<Link className='back-link' to='/login'>
-				Volver al login
-			</Link>
-			<section className='auth-card'>
-				<h1>Recuperar contraseña</h1>
-				<form className='auth-form' onSubmit={onSubmit}>
+		<div className="page auth-page">
+			<div className="auth-page-stack">
+				<Link className="back-link" to="/login">
+					← Volver al login
+				</Link>
+				<section className="auth-card" aria-labelledby="forgot-title">
+					<div className="auth-card-eyebrow">Acceso</div>
+					<h1 id="forgot-title">Recuperar contraseña</h1>
+					<p className="muted auth-card-lead">Te enviaremos un enlace para restablecerla (revisa carpeta de spam).</p>
+					<form className="auth-form" onSubmit={onSubmit}>
 					<label className='auth-field'>
 						<span>Correo</span>
 						<input type='email' value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -38,10 +41,15 @@ export function ForgotPasswordPage() {
 					<button type='submit' className='auth-submit' disabled={submitting}>
 						{submitting ? 'Enviando…' : 'Enviar instrucciones'}
 					</button>
-					{message ? <p className='review-success'>{message}</p> : null}
-					{error ? <p className='error'>{error}</p> : null}
-				</form>
+					{message ? <p className="review-success">{message}</p> : null}
+					{error ? (
+						<p className="error" role="alert" aria-live="assertive">
+							{error}
+						</p>
+					) : null}
+					</form>
 			</section>
+			</div>
 		</div>
 	);
 }

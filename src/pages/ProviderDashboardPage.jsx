@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -14,9 +14,16 @@ import {
 	listMyAgendaSlots,
 	unblockAgendaSlot
 } from '../services/agenda';
+import { listClinicServices, createClinicService } from '../services/clinicServices';
 import { fetchProviderBookings } from '../services/bookings';
 import { cancelCitaAsProvider, confirmCitaAsProvider, recordCitaDiagnostico } from '../services/citas';
 import { formatChileDateTimeRange, formatInChile, formatTimeInChile } from '../constants/chileTime';
+import { hasRole } from '../lib/userRoles';
+import {
+	ProviderClinicCalendar,
+	mapBookingToCalEvent,
+	filterBookingsForCalendar
+} from '../components/ProviderClinicCalendar';
 
 const APPOINTMENT_STATUS_LABELS = {
 	pending_confirmation: 'Pendiente de confirmación',
@@ -73,11 +80,42 @@ export function ProviderDashboardPage() {
 	const [loadingBookings, setLoadingBookings] = useState(true);
 	const [loadingSlots, setLoadingSlots] = useState(true);
 	const [error, setError] = useState('');
-	const [agendaFrom, setAgendaFrom] = useState('');
-	const [agendaTo, setAgendaTo] = useState('');
+	/** Filtro por defecto: hoy y dos semanas; vaciar ambas fechas = ver toda la agenda futura. */
+	const [agendaFrom, setAgendaFrom] = useState(() => toYmdLocal(new Date()));
+	const [agendaTo, setAgendaTo] = useState(() => {
+		const d = new Date();
+		d.setDate(d.getDate() + 14);
+		return toYmdLocal(d);
+	});
 	const [agendaMsg, setAgendaMsg] = useState('');
+	const [agendaError, setAgendaError] = useState('');
 	const [bookingActionMsg, setBookingActionMsg] = useState('');
 	const [bookingActionErr, setBookingActionErr] = useState('');
+	const [clinicLines, setClinicLines] = useState([]);
+	const [newLineName, setNewLineName] = useState('');
+	const [newLineMins, setNewLineMins] = useState(30);
+	const [newLinePrice, setNewLinePrice] = useState('');
+	const [clinicLineMsg, setClinicLineMsg] = useState('');
+	const didAutoAgenda = useRef(false);
+
+	const calendarEvents = useMemo(() => {
+		return (Array.isArray(bookings) ? bookings : [])
+			.filter(filterBookingsForCalendar)
+			.map((row) => mapBookingToCalEvent(row, ownerLabel));
+	}, [bookings]);
+
+	/** Añade tramos en el rango; por defecto desde hoy unas 8 semanas. */
+	const fillAgendaRange = useCallback(
+		/** @param {number} weekCount */
+		async (weekCount = 8) => {
+			const from = toYmdLocal(new Date());
+			const t = new Date();
+			t.setDate(t.getDate() + 7 * weekCount);
+			const toD = toYmdLocal(t);
+			return generateAgendaSlots({ fromDate: from, toDate: toD });
+		},
+		[]
+	);
 
 	const reloadBookings = useCallback(async () => {
 		const b = await fetchProviderBookings();
@@ -85,7 +123,7 @@ export function ProviderDashboardPage() {
 	}, []);
 
 	useEffect(() => {
-		if (authLoading || !user || user.role !== 'proveedor') return;
+		if (authLoading || !user || !hasRole(user, 'proveedor')) return;
 		const c = new AbortController();
 		(async () => {
 			try {
@@ -104,7 +142,12 @@ export function ProviderDashboardPage() {
 	}, [authLoading, user]);
 
 	useEffect(() => {
-		if (authLoading || !user || user.role !== 'proveedor') return;
+		if (authLoading || !user || !hasRole(user, 'proveedor')) return;
+		if (user?.providerType !== 'veterinaria') {
+			setSlots([]);
+			setLoadingSlots(false);
+			return;
+		}
 		const c = new AbortController();
 		(async () => {
 			try {
@@ -120,6 +163,48 @@ export function ProviderDashboardPage() {
 		return () => c.abort();
 	}, [authLoading, user, agendaFrom, agendaTo]);
 
+	useEffect(() => {
+		const isProv = hasRole(user, 'proveedor');
+		const kind = user?.providerType;
+		if (authLoading || !user || !isProv || !['veterinaria', 'paseador', 'cuidador'].includes(kind)) return;
+		const c = new AbortController();
+		(async () => {
+			try {
+				const d = await listClinicServices(c.signal);
+				setClinicLines(Array.isArray(d.items) ? d.items : []);
+			} catch {
+				setClinicLines([]);
+			}
+		})();
+		return () => c.abort();
+	}, [authLoading, user]);
+
+	/** Rellena la bandeja de tramos (sin botón: una vez al cargar; también al añadir línea). */
+	useEffect(() => {
+		if (authLoading || !user || user?.providerType !== 'veterinaria' || didAutoAgenda.current) return;
+		didAutoAgenda.current = true;
+		let alive = true;
+		(async () => {
+			try {
+				await fillAgendaRange(8);
+			} catch {
+				/* clínica nueva o aún sin líneas: omitir */
+			}
+			if (!alive) return;
+			try {
+				const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+				setSlots(Array.isArray(s.slots) ? s.slots : []);
+			} catch {
+				if (alive) setSlots([]);
+			}
+		})();
+		return () => {
+			alive = false;
+		};
+		// Intencional: solo al montar el panel; no depende del filtro de fechas
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [authLoading, user, fillAgendaRange]);
+
 	if (authLoading) {
 		return (
 			<div className='page'>
@@ -132,7 +217,7 @@ export function ProviderDashboardPage() {
 		return <Navigate to='/login' replace state={{ from: '/proveedor' }} />;
 	}
 
-	if (user.role !== 'proveedor') {
+	if (!hasRole(user, 'proveedor')) {
 		return (
 			<div className='page'>
 				<Link className='back-link' to='/'>
@@ -143,30 +228,74 @@ export function ProviderDashboardPage() {
 		);
 	}
 
-	async function onGenerateAgenda(e) {
+	async function onForceFillAgenda(e) {
 		e.preventDefault();
 		setAgendaMsg('');
+		setAgendaError('');
 		try {
-			const body = {};
-			if (agendaFrom.trim()) body.fromDate = agendaFrom.trim();
-			if (agendaTo.trim()) body.toDate = agendaTo.trim();
-			const res = await generateAgendaSlots(body);
-			let line = res.message || 'Bloques generados.';
+			const res = await fillAgendaRange(8);
+			let line = res.message || 'Listo. Se añadieron o completaron tramos.';
 			const n = res.summary && typeof res.summary.respectedManualDeletes === 'number' ? res.summary.respectedManualDeletes : 0;
 			if (n > 0) {
-				line += ` (No se volvieron a insertar ${n} franjas que habías borrado: sigue leyendo el texto de ayuda abajo.)`;
+				line += ` (${n} tramo(s) respetan borrados a mano; mira abajo en avanzada.)`;
 			}
 			setAgendaMsg(line);
 			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
-			setAgendaMsg(err.response?.data?.message || 'No se pudo generar la agenda.');
+			const raw = err.response?.data?.message || err.message || 'No se pudo rellenar la agenda.';
+			setAgendaError(typeof raw === 'string' ? raw : 'No se pudo rellenar la agenda.');
+		}
+	}
+
+	async function onAddClinicLine(e) {
+		e.preventDefault();
+		setClinicLineMsg('');
+		const n = newLineName.trim();
+		if (!n) {
+			setClinicLineMsg('Escribe un nombre para la línea (ej. Consulta Dra. Pérez).');
+			return;
+		}
+		const isVet = user?.providerType === 'veterinaria';
+		const isWalker = user?.providerType === 'paseador' || user?.providerType === 'cuidador';
+		const pr = isWalker ? Number(String(newLinePrice).replace(',', '.')) : null;
+		if (isWalker && (Number.isNaN(pr) || pr < 0)) {
+			setClinicLineMsg('Indica un precio (referencia) numérico para este servicio.');
+			return;
+		}
+		try {
+			const payload = {
+				displayName: n,
+				slotDurationMinutes: newLineMins
+			};
+			if (isWalker) payload.priceClp = pr;
+			await createClinicService(payload);
+			setNewLineName('');
+			if (isVet) {
+				try {
+					await fillAgendaRange(8);
+					const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+					setSlots(Array.isArray(s.slots) ? s.slots : []);
+				} catch {
+					/* sin bloquear */
+				}
+			}
+			setClinicLineMsg(
+				isVet
+					? 'Línea añadida. Los tramos de esta línea se generan en la agenda (hoy +8 sem).'
+					: 'Servicio añadido.'
+			);
+			const d = await listClinicServices();
+			setClinicLines(Array.isArray(d.items) ? d.items : []);
+		} catch (err) {
+			setClinicLineMsg(err.response?.data?.message || 'No se pudo crear la línea.');
 		}
 	}
 
 	async function onClearOmittedAgenda(e) {
 		e.preventDefault();
 		setAgendaMsg('');
+		setAgendaError('');
 		const from = agendaFrom.trim() || toYmdLocal(new Date());
 		const to = agendaTo.trim() || from;
 		try {
@@ -176,38 +305,41 @@ export function ProviderDashboardPage() {
 				(res && res.message) || `Listo. Se quitaron ${n} recuerdos de franjas borradas. Vuelve a generar.`
 			);
 		} catch (err) {
-			setAgendaMsg(err.response?.data?.message || 'No se pudo limpiar la supresión de franjas.');
+			setAgendaError(err.response?.data?.message || 'No se pudo limpiar la supresión de franjas.');
 		}
 	}
 
 	async function onDeleteSlot(id) {
 		if (!window.confirm('¿Eliminar este bloque disponible?')) return;
 		try {
+			setAgendaError('');
 			await deleteAgendaSlot(id);
 			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
-			setAgendaMsg(err.response?.data?.message || 'No se pudo eliminar.');
+			setAgendaError(err.response?.data?.message || 'No se pudo eliminar.');
 		}
 	}
 
 	async function onBlockSlot(id) {
 		try {
+			setAgendaError('');
 			await blockAgendaSlot(id);
 			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
-			setAgendaMsg(err.response?.data?.message || 'No se pudo bloquear.');
+			setAgendaError(err.response?.data?.message || 'No se pudo bloquear.');
 		}
 	}
 
 	async function onUnblockSlot(id) {
 		try {
+			setAgendaError('');
 			await unblockAgendaSlot(id);
 			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
-			setAgendaMsg(err.response?.data?.message || 'No se pudo desbloquear.');
+			setAgendaError(err.response?.data?.message || 'No se pudo desbloquear.');
 		}
 	}
 
@@ -238,6 +370,11 @@ export function ProviderDashboardPage() {
 			}
 			setBookingActionMsg('Actualizado correctamente.');
 			await reloadBookings();
+			/* Al confirmar, refrescar bloques: el hueco no vuelve a ofrecerse (y la lista queda alineada). */
+			if (user?.providerType === 'veterinaria') {
+				const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+				setSlots(Array.isArray(s.slots) ? s.slots : []);
+			}
 		} catch (err) {
 			setBookingActionErr(err.response?.data?.message || 'No se pudo confirmar.');
 		}
@@ -308,6 +445,7 @@ export function ProviderDashboardPage() {
 	}
 
 	const isVet = user.providerType === 'veterinaria';
+	const isWalkerCare = user?.providerType === 'paseador' || user?.providerType === 'cuidador';
 	const agendaStart = user?.providerProfile?.agendaSlotStart || '09:00';
 	const agendaEnd = user?.providerProfile?.agendaSlotEnd || '18:00';
 
@@ -319,29 +457,58 @@ export function ProviderDashboardPage() {
 	}
 
 	return (
-		<div className='page provider-dashboard'>
-			<Link className='back-link' to='/'>
-				Mapa
+		<div className="page provider-dashboard">
+			<Link className="back-link" to="/">
+				← Volver al inicio
 			</Link>
-			<h1>{isVet ? 'Panel de la clínica' : 'Panel de servicios'}</h1>
-			<p className='muted'>
-				Estado: <strong>{user.status === 'en_revision' ? 'en revisión' : user.status}</strong> · Tipo:{' '}
-				<strong>{user.providerType === 'veterinaria' ? 'veterinaria' : user.providerType}</strong>
-			</p>
-			<p>
-				<Link to='/proveedor/mi-perfil'>{isVet ? 'Configuración de la clínica' : 'Configurar perfil y tarifas'}</Link>
-				{' · '}
-				<Link to='/proveedor/mis-resenas'>Reseñas recibidas</Link>
-			</p>
+			<div className="page-surface page-surface--wide page-surface--provider-dash">
+				<header className="provider-dash-header">
+					<div className="provider-dash-header__text">
+						<h1 id="provider-dashboard-title">{isVet ? 'Inicio de clínica' : 'Panel de servicios'}</h1>
+						<p className="provider-dash-header__lede">
+							{isVet
+								? 'Citas, líneas de atención (cada prof. o servicio) y tramos sueltos que el cliente reserva en línea.'
+								: 'Gestiona solicitudes de paseo o cuidado y el estado de tus reservas.'}
+						</p>
+					</div>
+					<div className="provider-dash-header__actions" aria-labelledby="provider-dashboard-title">
+						{user.status === 'en_revision' ? (
+							<span className="provider-dash-badge" title="Tu perfil aún no está publicado en el mapa">
+								En revisión
+							</span>
+						) : null}
+						<Link className="provider-dash-config-link" to="/proveedor/mi-perfil">
+							{isVet ? 'Configuración de la clínica' : 'Configurar perfil y tarifas'}
+						</Link>
+						<Link className="provider-dash-secondary-link" to="/proveedor/mis-resenas">
+							Reseñas recibidas
+						</Link>
+					</div>
+				</header>
+			</div>
 
-			<section className='edit-fieldset book-section'>
-				<h2>Reservas y citas donde eres el profesional</h2>
-				<p className='hint muted'>
-					Puedes confirmar o cancelar solicitudes pendientes. Si la reserva ya estaba confirmada, la
-					cancelación del profesional requiere al menos 2 horas de anticipación (misma regla que el dueño).
-					Las solicitudes de paseo o cuidado pueden marcarse como completadas cuando el servicio ya se
-					realizó (no aplica a citas clásicas ni a agenda veterinaria).
-				</p>
+			<section className="edit-fieldset book-section provider-dash-section">
+				<h2 id="reservas-calendario">
+					{isVet ? 'Reservas, citas y calendario' : 'Reservas y citas'}
+				</h2>
+				{isVet ? (
+					<>
+						<p className="hint muted" style={{ marginTop: 0, maxWidth: '44rem' }}>
+							<strong>Horas ya reservadas:</strong> aparecen en el calendario (línea de atención + nombre del
+							 cliente) y en la tabla bajo con las acciones. <strong>Turno libre:</strong> mientras un tramo
+							esté publicado, cualquiera puede tomarlo; al reservar, deja de figurar en «Tramos libres» (abajo) y
+							<strong> pasa a esta lista y al calendario</strong>.
+						</p>
+						<ProviderClinicCalendar events={calendarEvents} />
+						<p className="hint muted" style={{ margin: '0.5rem 0 0' }}>
+							Acciones: confirmar o cancelar; desde citas de agenda, abrir ficha de atención.
+						</p>
+					</>
+				) : (
+					<p className="hint muted" style={{ marginTop: 0 }}>
+						Confirmar o cancelar; en paseo y cuidado podrás marcar el servicio como completado.
+					</p>
+				)}
 				{loadingBookings ? <p>Cargando…</p> : null}
 				{error ? <p className='error'>{error}</p> : null}
 				{bookingActionMsg ? <p className='review-success'>{bookingActionMsg}</p> : null}
@@ -355,9 +522,10 @@ export function ProviderDashboardPage() {
 							<thead>
 								<tr>
 									<th>Fecha</th>
+									{isVet ? <th>Línea o servicio</th> : null}
 									<th>Origen</th>
 									<th>Cliente</th>
-									<th>Detalle</th>
+									<th>Detalle / mascota</th>
 									<th>Estado</th>
 									<th>Acciones</th>
 								</tr>
@@ -388,9 +556,19 @@ export function ProviderDashboardPage() {
 									const showDiagnostico = canRecordDiagnostico(row);
 									const showClinical = canRegisterClinical(row);
 									const pid = petIdString(row);
+									const lineLabel = isVet
+										? isLegacy
+											? row.servicio || 'Cita (formulario clásico)'
+											: row.clinicService?.displayName
+												? String(row.clinicService.displayName)
+												: row.bookingSource === 'walker_request'
+													? 'Paseo / cuidado'
+													: '—'
+										: null;
 									return (
 										<tr key={`${row.kind}-${row.id}`}>
 											<td>{formatRange(row.startAt, row.endAt)}</td>
+											{isVet ? <td>{lineLabel || '—'}</td> : null}
 											<td>{origin}</td>
 											<td>{ownerLabel(own)}</td>
 											<td className='bookings-detail'>{detail}</td>
@@ -441,87 +619,244 @@ export function ProviderDashboardPage() {
 				) : null}
 			</section>
 
-			{isVet ? (
-				<section className='edit-fieldset book-section'>
-					<h2>
-						Agenda (30 min) · rango en tu perfil: {agendaStart}–{agendaEnd} (hora Chile)
-					</h2>
-					<p className='hint muted'>
-						<strong>Por qué arriba pone 12:00 y abajo ves 9:30:</strong> el título es el horario que
-						<strong> guardaste ahora</strong> (lo usa «Generar» a partir de hoy). La lista mezcla bloques
-						<strong> ya creados antes</strong> con otra ventana. Si subiste 12:00, los tramos a 9:30 o 10:00
-						son viejos: bórralos o deja de verlos filtrando fechas. Después vuelve a generar.
-					</p>
-					<p className='hint muted'>
-						Solo veterinarias aprobadas. Con recepción (no 24/7), en «Configuración de clínica» el rango de
-						agenda coincide con apertura y cierre. Si <strong>eliminaste a mano</strong> y luego generas, no
-						se reinserta esa franja; usa «Liberar franjas suprimidas» si quieres ofrecerla otra vez.
-					</p>
-					<form className='agenda-generate-form' onSubmit={onGenerateAgenda}>
-						<div className='edit-row-2'>
-							<label className='edit-field'>
-								<span>Desde (generar y listar; vacío = todos los días futuros)</span>
-								<input type='date' value={agendaFrom} onChange={(e) => setAgendaFrom(e.target.value)} />
-							</label>
-							<label className='edit-field'>
-								<span>Hasta (opcional; si vacío, mismo día que Desde)</span>
-								<input type='date' value={agendaTo} onChange={(e) => setAgendaTo(e.target.value)} />
-							</label>
-						</div>
-						<button type='submit' className='save-profile-btn'>
-							Generar / rellenar bloques
-						</button>
-					</form>
-					<form
-						className='agenda-generate-form'
-						onSubmit={onClearOmittedAgenda}
-						style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--app-border, #e2e8f0)' }}
-					>
-						<p className='hint muted' style={{ margin: '0 0 8px' }}>
-							Si quieres que, tras borrar a mano, vuelva a ofrecerse un tramo, primero quita el bloqueo de
-							«reinsertar» para las <strong>fechas de arriba</strong> (o deja en blanco = solo hoy).
-						</p>
-						<button type='submit' className='btn-sm'>
-							Liberar franjas suprimidas (hoy o rango de fechas de arriba)
-						</button>
-					</form>
-					{agendaMsg ? <p className='review-success'>{agendaMsg}</p> : null}
-					<h3>
-						Bloques (solo futuro; {agendaFrom.trim() || agendaTo.trim() ? 'filtrando fechas de arriba' : 'todos los días'})
-					</h3>
-					<p className='hint muted' style={{ margin: '0 0 8px' }}>
-						Horario en <strong>Chile</strong>. Si fijas <strong>Desde = 24-04</strong> (y Hasta vacío) solo
-						verás el 24; un 23-04 que salía era por listar <strong>todas</strong> las fechas. Vacía las
-						fechas en blanco para ver otra vez todos los días futuros.
-					</p>
-					{loadingSlots ? <p>Cargando…</p> : null}
-					{!loadingSlots && slots.length === 0 ? <p className='muted'>No hay bloques futuros libres.</p> : null}
-					<ul className='slot-admin-list'>
-						{slots.map((s) => (
-							<li key={String(s._id)}>
-								<span>
-									{formatInChile(s.startAt)} — {formatTimeInChile(s.endAt)}{' '}
-									<small className='muted'>({s.status || '—'})</small>
-								</span>
-								{s.status === 'available' ? (
-									<button type='button' className='btn-sm' onClick={() => onBlockSlot(s._id)}>
-										Bloquear
-									</button>
-								) : null}
-								{s.status === 'blocked' ? (
-									<button type='button' className='btn-sm' onClick={() => onUnblockSlot(s._id)}>
-										Desbloquear
-									</button>
-								) : null}
-								<button type='button' className='btn-reject' onClick={() => onDeleteSlot(s._id)}>
-									Eliminar
+			{isVet || isWalkerCare ? (
+				<>
+					{isVet ? (
+						<section
+							className="edit-fieldset book-section"
+							aria-labelledby="clinic-lines-heading"
+						>
+							<h2 id="clinic-lines-heading">1. Líneas de atención (servicio o profesional)</h2>
+							<p className="hint muted" style={{ marginTop: 0, maxWidth: '42rem' }}>
+								En reserva, el dueño <strong>elige la línea</strong>. Cada línea tiene su propia
+								duración (ej. 30 o 40 min) y a partir de eso se crean los <strong>tramos consecutivos</strong>{' '}
+								en el horario de la clínica. Al cliente no se muestra el precio de consulta, solo
+								identificación del servicio.
+							</p>
+							<p className="hint muted" style={{ margin: '0 0 0.75rem' }}>
+								<strong>Recepción:</strong> hoy aplica un solo horario para toda la clínica,{' '}
+								<Link to="/proveedor/mi-perfil">{agendaStart}–{agendaEnd} (clic para cambiarlo)</Link>.
+							</p>
+							{clinicLines.length > 0 ? (
+								<ul className="clinic-line-summary" style={{ margin: '0 0 1rem', paddingLeft: '1.1rem' }}>
+									{clinicLines
+										.filter((l) => l.active !== false)
+										.map((l) => (
+											<li key={String(l._id || l.id)}>
+												<strong>{l.displayName}</strong>
+												{l.slotDurationMinutes ? ` · franja de ${l.slotDurationMinutes} min` : null}
+											</li>
+										))}
+								</ul>
+							) : null}
+							<form className="agenda-generate-form" onSubmit={onAddClinicLine} style={{ marginBottom: 8 }}>
+								<div className="edit-row-2">
+									<label className="edit-field">
+										<span>Nombre (ej. Consulta Dra. Soto, Estética)</span>
+										<input
+											type="text"
+											value={newLineName}
+											onChange={(e) => setNewLineName(e.target.value)}
+											placeholder="Nombre visible en la reserva"
+											maxLength={120}
+										/>
+									</label>
+									<label className="edit-field">
+										<span>Duración de cada tramo (min)</span>
+										<input
+											type="number"
+											min={15}
+											max={180}
+											step={5}
+											value={newLineMins}
+											onChange={(e) => setNewLineMins(Number(e.target.value) || 30)}
+										/>
+									</label>
+								</div>
+								<button type="submit" className="btn-sm">
+									Añadir línea
 								</button>
-							</li>
-						))}
-					</ul>
-				</section>
+							</form>
+							{clinicLineMsg ? <p className="review-success">{clinicLineMsg}</p> : null}
+						</section>
+					) : null}
+
+					{isVet ? (
+						<section
+							className="edit-fieldset book-section"
+							aria-labelledby="clinic-slots-heading"
+						>
+							<h2 id="clinic-slots-heading">2. Tramos libres (aún a la reserva pública)</h2>
+							<p className="hint muted" style={{ marginTop: 0, maxWidth: '42rem' }}>
+								Tras definir o <strong>añadir una línea</strong>, se generan tramos consecutivos en el
+								horario de recepción (hoy a +8 semanas) sin paso extra. <strong>Al reservar un
+								cliente</strong> ese tramo deja de verse aquí y pasa a <a href="#reservas-calendario">arriba</a>.
+							</p>
+							<div className="agenda-generate-form" style={{ marginTop: 8 }}>
+								<div className="edit-row-2">
+									<label className="edit-field">
+										<span>Listar tramos: desde (fecha)</span>
+										<input
+											type="date"
+											value={agendaFrom}
+											onChange={(e) => setAgendaFrom(e.target.value)}
+										/>
+									</label>
+									<label className="edit-field">
+										<span>Hasta (fecha)</span>
+										<input
+											type="date"
+											value={agendaTo}
+											onChange={(e) => setAgendaTo(e.target.value)}
+										/>
+									</label>
+								</div>
+								<p className="muted" style={{ margin: '0.5rem 0 0', fontSize: '0.88rem' }}>
+									Solo afecta <strong>esta</strong> lista. Vacía ambas para ver toda la agenda libre
+									(futura).
+								</p>
+							</div>
+							{agendaError ? (
+								<p className="error" style={{ marginTop: 12 }} role="alert">
+									{agendaError}
+								</p>
+							) : null}
+							{agendaMsg && !agendaError ? <p className="review-success" style={{ marginTop: 12 }}>{agendaMsg}</p> : null}
+							<details
+								className="agenda-advanced-details"
+								style={{ marginTop: 8, padding: '0.5rem 0' }}
+							>
+								<summary
+									className="muted"
+									style={{ cursor: 'pointer', fontSize: '0.95rem', listStyle: 'revert' }}
+								>
+									Si faltan tramos o quieres forzar un rellenado &mdash; o si quitaste turnos a mano
+								</summary>
+								<p className="hint muted" style={{ margin: '0.5rem 0' }}>
+									Recrea tramos faltantes en hoy +8 semanas, respetando citas y borrados que indique el
+									sistema. Si al borrar a mano el tramo dejó de salir, usa &quot;Permitir otra vez&quot;
+									antes.
+								</p>
+								<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+									<form onSubmit={onForceFillAgenda} style={{ margin: 0 }}>
+										<button type="submit" className="btn-sm" style={{ margin: 0 }}>
+											Rellenar agenda ahora
+										</button>
+									</form>
+									<form onSubmit={onClearOmittedAgenda} style={{ margin: 0 }}>
+										<button type="submit" className="btn-sm">
+											Permitir otra vez tramos que quité a mano
+										</button>
+									</form>
+								</div>
+							</details>
+							<h3 style={{ margin: '1.25rem 0 0.5rem', fontSize: '1.1rem' }}>
+								Tramos libres o cerrados
+							</h3>
+							<p className="muted" style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
+								Chile. Cada tramo = línea de atención + rango. Los <strong>reservados</strong> no se listan: están en
+								<strong> calendario y tabla</strong>.
+							</p>
+							{loadingSlots ? <p>Cargando…</p> : null}
+							{!loadingSlots && slots.length === 0 ? <p className="muted">No hay tramos en el rango elegido.</p> : null}
+							<ul className="slot-admin-list">
+								{slots.map((s) => {
+									const lineName =
+										s.clinicServiceId && typeof s.clinicServiceId === 'object'
+											? s.clinicServiceId.displayName
+											: null;
+									return (
+										<li key={String(s._id)}>
+											<span>
+												{lineName ? <strong className="slot-line-name">{lineName} · </strong> : null}
+												{formatInChile(s.startAt)} — {formatTimeInChile(s.endAt)}{' '}
+												<small className="muted">({s.status || '—'})</small>
+											</span>
+											{s.status === 'available' ? (
+												<button type="button" className="btn-sm" onClick={() => onBlockSlot(s._id)}>
+													Cerrar turno
+												</button>
+											) : null}
+											{s.status === 'blocked' ? (
+												<button type="button" className="btn-sm" onClick={() => onUnblockSlot(s._id)}>
+													Abrir turno
+												</button>
+											) : null}
+											<button type="button" className="btn-reject" onClick={() => onDeleteSlot(s._id)}>
+												Quitar
+											</button>
+										</li>
+									);
+								})}
+							</ul>
+						</section>
+					) : null}
+
+					{isWalkerCare && !isVet ? (
+						<section className="edit-fieldset book-section">
+							<h2>Servicios ofrecidos (con precio referencia)</h2>
+							<p className="hint muted">
+								Los precios se muestran en el perfil. La disponibilidad y solicitudes de paseo o cuidado
+								van en otra sección; aquí defines líneas y tarifa referencia.
+							</p>
+							{clinicLines.length > 0 ? (
+								<p className="hint muted" style={{ margin: '0 0 0.5rem' }}>
+									<strong>Activas:</strong>{' '}
+									{clinicLines
+										.filter((l) => l.active !== false)
+										.map((l) => {
+											const p =
+												l.priceClp != null ? ` (${l.priceClp} ${l.currency || 'CLP'})` : '';
+											return `${l.displayName}${p}`;
+										})
+										.join(' · ')}
+								</p>
+							) : null}
+							<form className="agenda-generate-form" onSubmit={onAddClinicLine} style={{ marginBottom: 16 }}>
+								<div className="edit-row-2">
+									<label className="edit-field">
+										<span>Nombre del servicio</span>
+										<input
+											type="text"
+											value={newLineName}
+											onChange={(e) => setNewLineName(e.target.value)}
+											placeholder="ej. Paseo 45 min"
+											maxLength={120}
+										/>
+									</label>
+									<label className="edit-field">
+										<span>Minutos (duración o franja)</span>
+										<input
+											type="number"
+											min={15}
+											max={180}
+											step={5}
+											value={newLineMins}
+											onChange={(e) => setNewLineMins(Number(e.target.value) || 30)}
+										/>
+									</label>
+								</div>
+								<label className="edit-field" style={{ marginTop: 8, display: 'block' }}>
+									<span>Precio referencia (CLP)</span>
+									<input
+										type="number"
+										min={0}
+										step={1}
+										value={newLinePrice}
+										onChange={(e) => setNewLinePrice(e.target.value)}
+										required
+									/>
+								</label>
+								<button type="submit" className="btn-sm" style={{ marginTop: 8 }}>
+									Agregar servicio con precio
+								</button>
+							</form>
+							{clinicLineMsg ? <p className="review-success">{clinicLineMsg}</p> : null}
+						</section>
+					) : null}
+				</>
 			) : (
-				<p className='muted'>La generación de bloques por agenda aplica solo a veterinarias.</p>
+				<p className="muted">Añadiremos secciones según el tipo de proveedor cuando aplique.</p>
 			)}
 		</div>
 	);

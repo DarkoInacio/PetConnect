@@ -93,50 +93,58 @@ export function ProvidersMapPage() {
 	);
 
 	return (
-		<div className='page'>
-			<header className='header'>
-				<h1>Mapa de clínicas veterinarias</h1>
-				<p>
-					{user
-						? 'Usamos tu ubicación como referencia (punto en el mapa) para ordenar y filtrar clínicas cercanas.'
-						: 'Explora clínicas en el mapa. Crea una cuenta para guardar reservas y ficha de mascota.'}{' '}
-					También puedes{' '}
-					<Link to='/explorar'>listar paseadores, cuidadores y otras búsquedas</Link>.
-				</p>
-			</header>
+		<div className="page page--map">
+			<div className="page-surface page-surface--map">
+				<header className="page-hero page-hero--map">
+					<h1>Clínicas veterinarias cerca de ti</h1>
+					<p>
+						{user
+							? 'Usamos tu ubicación como referencia en el mapa para mostrar y ordenar clínicas cercanas, pensando en el cuidado de tu mascota.'
+							: 'Encuentra atención profesional en el mapa. Con una cuenta puedes reservar y llevar la ficha de salud de tu mascota en un solo lugar.'}{' '}
+						¿Buscas paseo o cuidado? <Link to="/explorar">Abrir Explorar</Link>.
+					</p>
+				</header>
 
-			<section className='filters'>
-				<div className='map-filter-static'>
-					<span className='map-filter-label'>Solo clínicas veterinarias</span>
-					<small className='muted' style={{ display: 'block' }}>
-						Paseadores y cuidadores: usa Explorar.
-					</small>
-				</div>
-				<input
-					type='text'
-					placeholder='Servicio'
-					value={filters.servicio}
-					onChange={(e) => setFilters((prev) => ({ ...prev, servicio: e.target.value }))}
-				/>
-				<input
-					type='text'
-					placeholder='Ciudad'
-					value={filters.ciudad}
-					onChange={(e) => setFilters((prev) => ({ ...prev, ciudad: e.target.value }))}
-				/>
-				<input
-					type='number'
-					min='1'
-					max='100'
-					value={filters.radio}
-					onChange={(e) => setFilters((prev) => ({ ...prev, radio: e.target.value }))}
-				/>
-			</section>
+				<section className="filters filters--map" aria-label="Filtros del mapa de clínicas">
+					<div className="map-filter-static">
+						<span className="map-filter-label">Solo clínicas veterinarias</span>
+						<small className="muted" style={{ display: 'block' }}>
+							Paseadores y cuidadores: Explorar.
+						</small>
+					</div>
+					<input
+						type="text"
+						placeholder="Ej. consulta, vacunas"
+						aria-label="Buscar por tipo de servicio"
+						value={filters.servicio}
+						onChange={(e) => setFilters((prev) => ({ ...prev, servicio: e.target.value }))}
+					/>
+					<input
+						type="text"
+						placeholder="Ciudad o comuna"
+						aria-label="Filtrar por ciudad o comuna"
+						value={filters.ciudad}
+						onChange={(e) => setFilters((prev) => ({ ...prev, ciudad: e.target.value }))}
+					/>
+					<input
+						type="number"
+						min="1"
+						max="100"
+						aria-label="Radio de búsqueda en kilómetros"
+						value={filters.radio}
+						onChange={(e) => setFilters((prev) => ({ ...prev, radio: e.target.value }))}
+					/>
+				</section>
 
-			{error ? <p className='error'>{error}</p> : null}
+				{error ? (
+					<p className="error" style={{ marginBottom: 0 }} role="alert" aria-live="assertive">
+						{error}
+					</p>
+				) : null}
+			</div>
 
-			<div className='content'>
-				<div className='map-panel'>
+			<div className="content">
+				<div className="map-panel" role="region" aria-label="Mapa de clínicas veterinarias">
 					<ProvidersMap
 						center={center}
 						markers={markers}
@@ -150,16 +158,20 @@ export function ProvidersMapPage() {
 					/>
 				</div>
 
-				<aside className='list-panel'>
-					<div className='list-header'>
-						<strong>{loading ? 'Cargando...' : `${markers.length} resultados`}</strong>
+				<aside className="list-panel" aria-label="Listado de clínicas cerca de tu búsqueda">
+					<div className="list-header">
+						<strong>{loading ? 'Cargando clínicas…' : `${markers.length} clínicas encontradas`}</strong>
 					</div>
 					<ul>
 						{markers.map((provider) => {
 							const isSelected = String(provider.id) === String(selectedProviderId);
 							return (
 								<li key={provider.id} className={isSelected ? 'selected' : ''}>
-									<button type='button' onClick={() => setSelectedProviderId(provider.id)}>
+									<button
+										type="button"
+										aria-pressed={isSelected}
+										onClick={() => setSelectedProviderId(provider.id)}
+									>
 										<span>{provider.fullName || `${provider.name} ${provider.lastName}`}</span>
 										<small>
 											{provider.providerType} · {provider.isTemporarilyClosed ? 'Temporalmente cerrado' : 'Abierto'}
@@ -170,8 +182,11 @@ export function ProvidersMapPage() {
 						})}
 					</ul>
 					{selectedProvider ? (
-						<Link className='profile-link' to={getProviderProfilePath(selectedProvider)}>
-							Ver perfil seleccionado
+						<Link
+							className="profile-link"
+							to={getProviderProfilePath(selectedProvider)}
+						>
+							Ver ficha y agendar
 						</Link>
 					) : null}
 				</aside>

@@ -97,12 +97,14 @@ export function RegisterProviderPage() {
 
 	if (step === 'elegir') {
 		return (
-			<div className='page auth-page register-provider-page'>
-				<Link className='back-link' to='/'>
-					Volver al mapa
-				</Link>
-				<section className='auth-card wide-card'>
-					<h1>Proveedores: elige tu tipo de servicio</h1>
+			<div className="page auth-page auth-page--wide register-provider-page">
+				<div className="auth-page-stack">
+					<Link className="back-link" to="/">
+						← Volver al mapa
+					</Link>
+					<section className="auth-card">
+					<div className="auth-card-eyebrow">Proveedores</div>
+					<h1>Elige tu tipo de servicio</h1>
 					<p className='muted'>
 						Así te pedimos los datos adecuados. Tu cuenta quedará <strong>en revisión</strong> hasta
 						que un administrador la apruebe.
@@ -124,10 +126,11 @@ export function RegisterProviderPage() {
 					<p className='muted' style={{ marginTop: 20, textAlign: 'center' }}>
 						¿Eres dueño de una mascota? <Link to='/registro'>Regístrate aquí</Link>
 					</p>
-					<p className='muted' style={{ textAlign: 'center' }}>
-						¿Ya tienes cuenta? <Link to='/login'>Iniciar sesión</Link>
+					<p className="muted" style={{ textAlign: 'center' }}>
+						¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link>
 					</p>
 				</section>
+				</div>
 			</div>
 		);
 	}
@@ -135,12 +138,13 @@ export function RegisterProviderPage() {
 	const tipoLabel = PROVIDER_OPTIONS.find((o) => o.type === providerType)?.title || providerType;
 
 	return (
-		<div className='page auth-page register-provider-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
+		<div className="page auth-page auth-page--wide register-provider-page">
+			<div className="auth-page-stack">
+			<Link className="back-link" to="/">
+				← Volver al mapa
 			</Link>
-			<section className='auth-card wide-card'>
-				<p className='muted' style={{ margin: '0 0 4px' }}>
+			<section className="auth-card">
+				<p className="muted" style={{ margin: '0 0 4px' }}>
 					<button type='button' className='link-button' onClick={() => setStep('elegir')}>
 						← Elegir otro tipo de proveedor
 					</button>
@@ -243,9 +247,14 @@ export function RegisterProviderPage() {
 					<button type='submit' className='auth-submit' disabled={submitting}>
 						{submitting ? 'Enviando…' : 'Enviar solicitud'}
 					</button>
-					{error ? <p className='error'>{error}</p> : null}
+					{error ? (
+						<p className="error" role="alert" aria-live="assertive">
+							{error}
+						</p>
+					) : null}
 				</form>
 			</section>
+			</div>
 		</div>
 	);
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { AuthModeSwitch } from '../components/AuthModeSwitch';
 
 export function LoginPage() {
 	const { login } = useAuth();
@@ -28,50 +29,53 @@ export function LoginPage() {
 	}
 
 	return (
-		<div className='page auth-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
-			</Link>
-			<section className='auth-card'>
-				<h1>Iniciar sesión</h1>
-				<p className='muted'>Usa el mismo correo y contraseña que en PetConnect.</p>
-				<form className='auth-form' onSubmit={onSubmit}>
-					<label className='auth-field'>
-						<span>Correo</span>
-						<input
-							type='email'
-							autoComplete='email'
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-						/>
-					</label>
-					<label className='auth-field'>
-						<span>Contraseña</span>
-						<input
-							type='password'
-							autoComplete='current-password'
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-						/>
-					</label>
-					<button type='submit' className='auth-submit' disabled={submitting}>
-						{submitting ? 'Entrando…' : 'Entrar'}
-					</button>
-					{error ? <p className='error'>{error}</p> : null}
-					<div className='auth-footer-links'>
-						<p className='muted' style={{ margin: '0 0 8px' }}>
-							¿No tienes cuenta? Puedes{' '}
-							<Link to='/registro'>registrarte como dueño de mascota</Link> o como{' '}
-							<Link to='/registro-proveedor'>proveedor</Link> (veterinaria, paseo o cuidado).
-						</p>
-						<p className='muted' style={{ margin: 0 }}>
-							<Link to='/recuperar-clave'>Olvidé mi contraseña</Link>
-						</p>
-					</div>
-				</form>
-			</section>
+		<div className="page auth-page">
+			<div className="auth-page-stack">
+				<Link className="back-link" to="/">
+					← Volver al mapa
+				</Link>
+				<section className="auth-card" aria-labelledby="login-title">
+					<div className="auth-card-eyebrow">PetConnect</div>
+					<h1 id="login-title">Iniciar sesión</h1>
+					<p className="muted auth-card-lead">Entra con tu correo y contraseña para reservar y cuidar la ficha de tu mascota.</p>
+					<form className="auth-form" onSubmit={onSubmit}>
+						<label className="auth-field">
+							<span>Correo</span>
+							<input
+								type="email"
+								autoComplete="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								required
+							/>
+						</label>
+						<label className="auth-field">
+							<span>Contraseña</span>
+							<input
+								type="password"
+								autoComplete="current-password"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+								required
+							/>
+						</label>
+						<button type="submit" className="auth-submit" disabled={submitting}>
+							{submitting ? 'Entrando…' : 'Entrar'}
+						</button>
+						{error ? (
+							<p className="error" role="alert" aria-live="assertive">
+								{error}
+							</p>
+						) : null}
+						<AuthModeSwitch mode="login" />
+						<div className="auth-footer-links" style={{ borderTop: 'none', marginTop: 0, paddingTop: '0.5rem' }}>
+							<p className="muted" style={{ margin: 0 }}>
+								<Link to="/recuperar-clave">Olvidé mi contraseña</Link>
+							</p>
+						</div>
+					</form>
+				</section>
+			</div>
 		</div>
 	);
 }
