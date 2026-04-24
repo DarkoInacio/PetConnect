@@ -2,9 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMyBookings } from '../services/bookings';
-import { getProviderProfilePath } from '../services/providers';
+import { getProviderProfilePath, withResenaCitaParam } from '../services/providers';
 import { cancelMyAppointment } from '../services/appointments';
 import { cancelCitaAsOwner, rescheduleCita } from '../services/citas';
+import {
+	createReviewForAppointment,
+	fetchReviewEligibility,
+	updateMyReview
+} from '../services/reviews';
 
 const APPOINTMENT_STATUS_LABELS = {
 	pending_confirmation: 'Pendiente de confirmación',
@@ -73,12 +78,68 @@ function statusBadgeClass(status) {
 	return 'booking-status ok';
 }
 
+function appointmentId(row) {
+	if (!row) return '';
+	return String(row.id ?? row._id ?? '');
+}
+
+/**
+ * Muestra "Reseña" en acciones: estados en que solemos reseñar; el API valida el resto.
+ */
+function appointmentShowsReviewButton(row) {
+	if (row.kind !== 'appointment') return false;
+	const st = row.status;
+	return st === 'completed' || st === 'confirmed';
+}
+
+/** Enlace con ?resenaCita= hacia el perfil (cualquier cita no cancelada, para reseñar o ver el motivo al entrar). */
+function appointmentCanOpenProfileResenaLink(row) {
+	if (row.kind !== 'appointment') return false;
+	if (['cancelled_by_owner', 'cancelled_by_provider'].includes(row.status)) return false;
+	return true;
+}
+
 export function MyBookingsPage() {
 	const { user, loading: authLoading } = useAuth();
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [actionMsg, setActionMsg] = useState('');
+	const [ownerReviewRow, setOwnerReviewRow] = useState(null);
+	const [elig, setElig] = useState(null);
+	const [eligLoading, setEligLoading] = useState(false);
+	const [eligError, setEligError] = useState('');
+	const [ownerForm, setOwnerForm] = useState({ rating: 5, comment: '' });
+	const [ownerReviewSubmit, setOwnerReviewSubmit] = useState(false);
+	const [ownerReviewMsg, setOwnerReviewMsg] = useState('');
+
+	useEffect(() => {
+		if (!ownerReviewRow || ownerReviewRow.kind !== 'appointment') {
+			setElig(null);
+			return;
+		}
+		const c = new AbortController();
+		(async () => {
+			setEligLoading(true);
+			setEligError('');
+			try {
+				const e = await fetchReviewEligibility(appointmentId(ownerReviewRow), c.signal);
+				setElig(e);
+				if (e?.review) {
+					setOwnerForm({ rating: e.review.rating, comment: e.review.comment || '' });
+				} else {
+					setOwnerForm({ rating: 5, comment: '' });
+				}
+			} catch (err) {
+				if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+				setEligError(err.response?.data?.message || 'No se pudo cargar el estado de la reseña.');
+				setElig(null);
+			} finally {
+				setEligLoading(false);
+			}
+		})();
+		return () => c.abort();
+	}, [ownerReviewRow]);
 
 	useEffect(() => {
 		if (authLoading || !user || user.role !== 'dueno') return;
@@ -114,7 +175,7 @@ export function MyBookingsPage() {
 		if (!reason || !reason.trim()) return;
 		setActionMsg('');
 		try {
-			await cancelMyAppointment(String(row.id), reason.trim().slice(0, 200));
+			await cancelMyAppointment(appointmentId(row), reason.trim().slice(0, 200));
 			setActionMsg('Cita cancelada.');
 			await reloadBookings();
 		} catch (err) {
@@ -166,6 +227,58 @@ export function MyBookingsPage() {
 		return row.kind === 'cita_legacy' && ['pendiente', 'confirmada'].includes(row.status);
 	}
 
+	function closeOwnerReview() {
+		setOwnerReviewRow(null);
+		setElig(null);
+		setEligError('');
+		setOwnerReviewMsg('');
+	}
+
+	async function submitOwnerReview() {
+		if (!ownerReviewRow) return;
+		const id = appointmentId(ownerReviewRow);
+		if (!id) {
+			setOwnerReviewMsg('No se pudo identificar la cita.');
+			setOwnerReviewSubmit(false);
+			return;
+		}
+		setOwnerReviewSubmit(true);
+		setOwnerReviewMsg('');
+		try {
+			if (elig?.canReview) {
+				const res = await createReviewForAppointment(id, {
+					rating: Number(ownerForm.rating),
+					comment: ownerForm.comment
+				});
+				setOwnerReviewMsg(res.message || 'Reseña publicada.');
+			} else if (elig?.hasReview && elig.reviewId) {
+				const res = await updateMyReview(String(elig.reviewId), {
+					rating: Number(ownerForm.rating),
+					comment: ownerForm.comment
+				});
+				setOwnerReviewMsg(res.message || 'Reseña actualizada.');
+			} else {
+				setOwnerReviewMsg('No se puede reseñar o editar en este momento.');
+				setOwnerReviewSubmit(false);
+				return;
+			}
+			await reloadBookings();
+			try {
+				const e = await fetchReviewEligibility(id);
+				setElig(e);
+				if (e?.review) {
+					setOwnerForm({ rating: e.review.rating, comment: e.review.comment || '' });
+				}
+			} catch {
+				// ok
+			}
+		} catch (err) {
+			setOwnerReviewMsg(err.response?.data?.message || 'Error al guardar la reseña.');
+		} finally {
+			setOwnerReviewSubmit(false);
+		}
+	}
+
 	if (authLoading) {
 		return (
 			<div className='page'>
@@ -200,6 +313,13 @@ export function MyBookingsPage() {
 			<p className='muted'>
 				Agenda, solicitudes a paseadores/cuidadores y citas anteriores en un solo listado.
 			</p>
+			<p className='muted' style={{ maxWidth: '42rem' }}>
+				Para reseñar, entra al perfil del servicio con <strong>Ingresar a la clínica y dejar reseña</strong>{' '}
+				(agenda o paseo/cuidado) o abre <strong>Reseña</strong> en la fila. Las <strong>
+					Cita (histórico)
+				</strong>{' '}
+				no usan el mismo sistema.
+			</p>
 			<p className='muted'>
 				<Link to='/citas'>Próximas citas (legacy)</Link> · <Link to='/mi-perfil'>Mi perfil</Link> ·{' '}
 				<Link to='/mascotas'>Mis mascotas</Link>
@@ -231,6 +351,11 @@ export function MyBookingsPage() {
 								const isLegacy = row.kind === 'cita_legacy';
 								const prov = isLegacy ? row.proveedor : row.provider;
 								const href = providerLinkTarget(prov);
+								const aid = appointmentId(row);
+								const resenaPath =
+									!isLegacy && href && aid
+										? withResenaCitaParam(href, aid)
+										: null;
 								const statusLabel = isLegacy
 									? CITA_ESTADO_LABELS[row.status] || row.status
 									: APPOINTMENT_STATUS_LABELS[row.status] || row.status;
@@ -253,12 +378,21 @@ export function MyBookingsPage() {
 								}
 
 								return (
-									<tr key={`${row.kind}-${row.id}`}>
+									<tr key={`${row.kind}-${appointmentId(row) || row.id || row._id || 'row'}`}>
 										<td>{formatRange(row.startAt, row.endAt)}</td>
 										<td>{originLabel}</td>
 										<td>
 											{href ? (
-												<Link to={href}>{providerLabel(prov)}</Link>
+												<div className="bookings-provider-cell">
+													<Link to={href}>{providerLabel(prov)}</Link>
+													{!isLegacy && resenaPath && appointmentCanOpenProfileResenaLink(row) ? (
+														<div className="bookings-ingress">
+															<Link to={resenaPath} className="bookings-ingress-link">
+																Ingresar a la clínica y dejar reseña
+															</Link>
+														</div>
+													) : null}
+												</div>
 											) : (
 												providerLabel(prov)
 											)}
@@ -283,10 +417,22 @@ export function MyBookingsPage() {
 													Reagendar
 												</button>
 											) : null}
+											{row.kind === 'appointment' && appointmentShowsReviewButton(row) ? (
+												<button
+													type='button'
+													className='btn-sm'
+													onClick={() => {
+														setOwnerReviewRow(row);
+													}}
+												>
+													Reseña
+												</button>
+											) : null}
 											{!(
 												(row.kind === 'appointment' && canCancelOwner(row)) ||
 												(row.kind === 'cita_legacy' && canCancelOwner(row)) ||
-												canRescheduleLegacy(row)
+												canRescheduleLegacy(row) ||
+												(row.kind === 'appointment' && appointmentShowsReviewButton(row))
 											) ? (
 												<span className='muted'>—</span>
 											) : null}
@@ -303,6 +449,90 @@ export function MyBookingsPage() {
 				<p className='bookings-api-note muted'>
 					<small>Nota API: {data.note}</small>
 				</p>
+			) : null}
+
+			{ownerReviewRow ? (
+				<div
+					className="report-modal-backdrop"
+					role="presentation"
+					onClick={() => {
+						if (!ownerReviewSubmit) closeOwnerReview();
+					}}
+				>
+					<div
+						className="report-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="owner-review-title"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<h3 id="owner-review-title">Reseña del servicio</h3>
+						<p className="muted" style={{ fontSize: '0.9rem' }}>
+							{formatRange(ownerReviewRow.startAt, ownerReviewRow.endAt)} — {providerLabel(ownerReviewRow.provider)}
+						</p>
+						{eligLoading ? <p>Cargando…</p> : null}
+						{eligError ? <p className="error">{eligError}</p> : null}
+						{!eligLoading && elig && !elig.canReview && !elig.hasReview ? (
+							<p className="muted">
+								Esta cita aún no califica para reseña (estado: {elig.appointmentStatus || '—'}). Tras
+								finalizar, podrás dejar tu opinión.
+							</p>
+						) : null}
+						{!eligLoading && elig && (elig.canReview || elig.hasReview) ? (
+							<form
+								className="review-form"
+								onSubmit={(e) => {
+									e.preventDefault();
+									void submitOwnerReview();
+								}}
+							>
+								<label className="review-field">
+									<span>Calificación</span>
+									<select
+										value={ownerForm.rating}
+										onChange={(e) =>
+											setOwnerForm((f) => ({ ...f, rating: Number(e.target.value) }))
+										}
+									>
+										{[5, 4, 3, 2, 1].map((n) => (
+											<option key={n} value={n}>
+												{n} estrellas
+											</option>
+										))}
+									</select>
+								</label>
+								<label className="review-field">
+									<span>Comentario (opcional)</span>
+									<textarea
+										value={ownerForm.comment}
+										onChange={(e) => setOwnerForm((f) => ({ ...f, comment: e.target.value }))}
+										rows={3}
+										maxLength={2000}
+									/>
+								</label>
+								{elig.hasReview ? (
+									<p className="muted" style={{ fontSize: '0.85rem' }}>
+										Solo puedes editar en las 24 h posteriores a publicar (lo valida el servidor).
+									</p>
+								) : null}
+								{ownerReviewMsg ? <p className="review-success">{ownerReviewMsg}</p> : null}
+								<div className="report-modal-actions">
+									<button
+										type="button"
+										className="btn-sm"
+										onClick={closeOwnerReview}
+										disabled={ownerReviewSubmit}
+									>
+										Cerrar
+									</button>
+									<button type="submit" className="review-submit" disabled={ownerReviewSubmit}>
+										{ownerReviewSubmit ? 'Guardando…' : elig.hasReview ? 'Guardar cambios' : 'Publicar reseña'}
+									</button>
+								</div>
+							</form>
+						) : null}
+					</div>
+				</div>
 			) : null}
 		</div>
 	);

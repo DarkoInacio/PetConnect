@@ -414,6 +414,166 @@
 	font-weight: 600;
 }
 
+.report-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 200;
+	background: rgba(15, 23, 42, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+}
+
+.report-modal {
+	background: var(--app-surface, #fff);
+	border: 1px solid var(--app-border);
+	border-radius: 12px;
+	padding: 1.25rem 1.5rem;
+	max-width: 28rem;
+	width: 100%;
+	max-height: 90vh;
+	overflow: auto;
+	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+.report-modal-actions {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: flex-end;
+	margin-top: 0.75rem;
+}
+
+.review-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	margin: 0.75rem 0 1rem;
+}
+
+.review-order {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.9rem;
+}
+
+.review-order select {
+	padding: 0.35rem 0.5rem;
+	border-radius: 8px;
+	border: 1px solid var(--app-border);
+}
+
+.review-distribution {
+	margin: 0.75rem 0 1rem;
+	max-width: 20rem;
+}
+
+.review-dist-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.2rem 0;
+	font-size: 0.85rem;
+}
+
+.review-dist-label {
+	width: 2.5rem;
+}
+
+.review-dist-bar-wrap {
+	flex: 1;
+	height: 8px;
+	background: var(--app-border, #e5e7eb);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.review-dist-bar {
+	height: 100%;
+	background: var(--app-primary, #0d9488);
+	border-radius: 4px;
+	min-width: 0;
+}
+
+.review-dist-pct {
+	width: 2.5rem;
+	text-align: right;
+}
+
+.link-button {
+	background: none;
+	border: 0;
+	padding: 0;
+	color: #0d9488;
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+	margin-left: 0.5rem;
+}
+
+.link-button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.provider-reply.public {
+	margin-top: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	background: #f0fdfa;
+	border-radius: 8px;
+	border: 1px solid #99f6e4;
+}
+
+.provider-reply-label {
+	margin: 0;
+	font-size: 0.8rem;
+	color: #0f766e;
+	font-weight: 600;
+}
+
+.text-sm {
+	font-size: 0.9rem;
+}
+
+.m-0 {
+	margin: 0;
+}
+
+.mb-3 {
+	margin-bottom: 0.75rem;
+}
+
+.bookings-provider-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	align-items: flex-start;
+}
+
+.bookings-ingress {
+	margin-top: 0.15rem;
+}
+
+.bookings-ingress-link {
+	font-size: 0.88rem;
+	font-weight: 600;
+}
+
+.owner-appointment-review-card {
+	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
+	padding: 1rem 1.1rem;
+	background: #f0fdfa;
+	border: 1px solid #99f6e4;
+	border-radius: 12px;
+}
+
+.owner-appointment-review-card h2 {
+	margin-top: 0;
+	font-size: 1.15rem;
+}
+
 .auth-page .auth-card {
 	max-width: 420px;
 	background: var(--app-surface, #fff);

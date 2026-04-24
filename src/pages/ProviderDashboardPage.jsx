@@ -330,6 +330,8 @@ export function ProviderDashboardPage() {
 			</p>
 			<p>
 				<Link to='/proveedor/mi-perfil'>{isVet ? 'Configuración de la clínica' : 'Configurar perfil y tarifas'}</Link>
+				{' · '}
+				<Link to='/proveedor/mis-resenas'>Reseñas recibidas</Link>
 			</p>
 
 			<section className='edit-fieldset book-section'>

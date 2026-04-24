@@ -26,11 +26,13 @@ function navItemsForUser(user) {
 		{ label: 'Panel paseo / cuidado', to: '/proveedor', when: (u) => u?.role === 'proveedor' && u?.providerType !== 'veterinaria' },
 		{ label: 'Configuración de clínica', to: '/proveedor/mi-perfil', when: (u) => u?.role === 'proveedor' && u?.providerType === 'veterinaria' },
 		{ label: 'Configurar perfil', to: '/proveedor/mi-perfil', when: (u) => u?.role === 'proveedor' && u?.providerType !== 'veterinaria' },
+		{ label: 'Mis reseñas', to: '/proveedor/mis-resenas', when: (u) => u?.role === 'proveedor' },
 		{ label: 'Atención clínica', to: '/proveedor/atencion-clinica', when: (u) => u?.role === 'proveedor' && u?.providerType === 'veterinaria' },
 		{ label: 'Mis reservas', to: '/mis-reservas', when: (u) => u?.role === 'dueno' },
 		{ label: 'Mascotas', to: '/mascotas', when: (u) => u?.role === 'dueno' },
 		{ label: 'Citas (legacy)', to: '/citas', when: (u) => u?.role === 'dueno' },
-		{ label: 'Admin proveedores', to: '/admin/proveedores', when: (u) => u?.role === 'admin' }
+		{ label: 'Admin proveedores', to: '/admin/proveedores', when: (u) => u?.role === 'admin' },
+		{ label: 'Reportes de reseñas', to: '/admin/resenas-reportes', when: (u) => u?.role === 'admin' }
 	];
 	return all.filter((i) => i.when(user));
 }
