@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import { getStoredAuthToken, resolveBackendAssetUrl } from '../services/api';
-import {
-	createProviderReview,
-	fetchProviderPublicProfile,
-	fetchProviderPublicProfileBySlug,
-	fetchProviderReviews
-} from '../services/providers';
+import { useAuth } from '../hooks/useAuth';
+import { OwnerAppointmentReviewPanel } from '../components/OwnerAppointmentReviewPanel';
+import { ReviewReportModal } from '../components/ReviewReportModal';
+import { fetchProviderPublicProfile, fetchProviderPublicProfileBySlug, fetchProviderReviews } from '../services/providers';
 
 const providerPinIcon = L.divIcon({
 	className: 'provider-marker',
@@ -64,20 +62,30 @@ function Stars({ value }) {
 export function ProviderProfilePage() {
 	const { id, tipo, slug } = useParams();
 	const isSlugRoute = Boolean(tipo && slug);
+	const [searchParams, setSearchParams] = useSearchParams();
+	const resenaCitaId = (searchParams.get('resenaCita') || searchParams.get('citaResena') || '').trim();
+	const { user } = useAuth();
 	const [provider, setProvider] = useState(null);
+	const [profileReviewTick, setProfileReviewTick] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
+	const [orden, setOrden] = useState('reciente');
 	const [reviewsState, setReviewsState] = useState({
 		items: [],
 		total: 0,
 		pagina: 1,
-		limite: 10,
+		limite: 5,
 		loading: false
 	});
-	const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
-	const [reviewSubmitting, setReviewSubmitting] = useState(false);
-	const [reviewError, setReviewError] = useState('');
-	const [reviewSuccess, setReviewSuccess] = useState('');
+	const [reviewListMeta, setReviewListMeta] = useState({
+		ratingSummary: null,
+		basedOnLabel: null,
+		empty: null,
+		emptyHint: null
+	});
+	const [reportOpen, setReportOpen] = useState(false);
+	const [reportReviewId, setReportReviewId] = useState(null);
+	const [reportToast, setReportToast] = useState('');
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -119,7 +127,7 @@ export function ProviderProfilePage() {
 			try {
 				const data = await fetchProviderReviews(
 					provider.id,
-					{ pagina: 1, limite: 10 },
+					{ pagina: 1, limite: 5, orden },
 					controller.signal
 				);
 				if (controller.signal.aborted) return;
@@ -127,8 +135,14 @@ export function ProviderProfilePage() {
 					items: Array.isArray(data.reviews) ? data.reviews : [],
 					total: typeof data.total === 'number' ? data.total : 0,
 					pagina: data.pagina || 1,
-					limite: data.limite || 10,
+					limite: data.limite || 5,
 					loading: false
+				});
+				setReviewListMeta({
+					ratingSummary: data.ratingSummary || null,
+					basedOnLabel: data.basedOnLabel || null,
+					empty: data.empty,
+					emptyHint: data.emptyHint || null
 				});
 			} catch {
 				if (controller.signal.aborted) return;
@@ -137,7 +151,7 @@ export function ProviderProfilePage() {
 		}
 		loadReviews();
 		return () => controller.abort();
-	}, [provider?.id]);
+	}, [provider?.id, orden, profileReviewTick]);
 
 	const loadMoreReviews = async () => {
 		if (!provider?.id || reviewsState.loading) return;
@@ -147,7 +161,8 @@ export function ProviderProfilePage() {
 		try {
 			const data = await fetchProviderReviews(provider.id, {
 				pagina: nextPage,
-				limite: reviewsState.limite
+				limite: reviewsState.limite,
+				orden
 			});
 			setReviewsState((s) => ({
 				...s,
@@ -158,43 +173,6 @@ export function ProviderProfilePage() {
 			}));
 		} catch {
 			setReviewsState((s) => ({ ...s, loading: false }));
-		}
-	};
-
-	const onSubmitReview = async (e) => {
-		e.preventDefault();
-		if (!provider?.id || !getStoredAuthToken()) return;
-		setReviewSubmitting(true);
-		setReviewError('');
-		setReviewSuccess('');
-		try {
-			const data = await createProviderReview(provider.id, {
-				rating: Number(reviewForm.rating),
-				comment: reviewForm.comment
-			});
-			setReviewSuccess(data.message || 'Reseña publicada.');
-			setReviewForm({ rating: 5, comment: '' });
-			const rev = await fetchProviderReviews(provider.id, { pagina: 1, limite: 10 });
-			setReviewsState({
-				items: rev.reviews || [],
-				total: rev.total || 0,
-				pagina: 1,
-				limite: rev.limite || 10,
-				loading: false
-			});
-			setProvider((p) =>
-				p
-					? {
-							...p,
-							ratingSummary: data.ratingSummary ?? p.ratingSummary,
-							reviewsRecent: data.reviewsRecent ?? p.reviewsRecent
-						}
-					: p
-			);
-		} catch (err) {
-			setReviewError(err.response?.data?.message || 'No se pudo enviar la reseña.');
-		} finally {
-			setReviewSubmitting(false);
 		}
 	};
 
@@ -240,6 +218,15 @@ export function ProviderProfilePage() {
 	const cta = ctaByProviderType(provider.providerType);
 	const ctaHref = `${cta.hrefBase}?providerId=${provider.id}`;
 	const ratingSummary = provider.ratingSummary;
+	const summary = reviewListMeta.ratingSummary || ratingSummary;
+	const isOwner = user?.role === 'dueno';
+
+	function canReportReview(r) {
+		if (!getStoredAuthToken() || !user) return false;
+		const aid = r.author?.id;
+		if (!aid) return true;
+		return String(aid) !== String(user.id);
+	}
 
 	return (
 		<div className='page profile-page'>
@@ -269,11 +256,11 @@ export function ProviderProfilePage() {
 						) : (
 							<p className='status-chip status-open'>Disponible para agendamiento</p>
 						)}
-						{ratingSummary?.count > 0 ? (
+						{summary?.count > 0 ? (
 							<p className='profile-rating-line'>
-								<strong>{ratingSummary.average != null ? ratingSummary.average.toFixed(1) : '—'}</strong>
+								<strong>{summary.average != null ? summary.average.toFixed(1) : '—'}</strong>
 								<span> / 5</span>
-								<span className='profile-rating-count'> · {ratingSummary.count} reseña(s)</span>
+								<span className='profile-rating-count'> · {summary.count} reseña(s)</span>
 							</p>
 						) : (
 							<p className='profile-rating-line muted'>Sin reseñas públicas todavía.</p>
@@ -281,6 +268,30 @@ export function ProviderProfilePage() {
 						<p>{perfil.description || 'Aún no hay descripción pública en este perfil.'}</p>
 					</div>
 				</div>
+
+				{resenaCitaId ? (
+					<>
+						<OwnerAppointmentReviewPanel
+							appointmentId={resenaCitaId}
+							providerName={`${provider.name || ''} ${provider.lastName || ''}`.trim()}
+							onReviewSaved={() => setProfileReviewTick((t) => t + 1)}
+						/>
+						<p className="muted" style={{ margin: '0 0 0.5rem' }}>
+							<button
+								type="button"
+								className="link-button"
+								onClick={() => {
+									const n = new URLSearchParams(searchParams);
+									n.delete('resenaCita');
+									n.delete('citaResena');
+									setSearchParams(n, { replace: true });
+								}}
+							>
+								Ocultar formulario de reseña
+							</button>
+						</p>
+					</>
+				) : null}
 
 				{gallery.length > 0 ? (
 					<div className='profile-gallery'>
@@ -369,10 +380,43 @@ export function ProviderProfilePage() {
 
 				<section className='profile-section reviews-section'>
 					<h2>Reseñas</h2>
+					{reviewListMeta.basedOnLabel ? (
+						<p className='muted' style={{ marginTop: 0 }}>{reviewListMeta.basedOnLabel}</p>
+					) : null}
+					{summary?.distributionWithPercent && summary.count > 0 ? (
+						<div className='review-distribution' aria-label='Distribución de estrellas'>
+							{[5, 4, 3, 2, 1].map((s) => {
+								const d = summary.distributionWithPercent[s] || { count: 0, percent: 0 };
+								return (
+									<div key={s} className='review-dist-row'>
+										<span className='review-dist-label'>{s} ★</span>
+										<div className='review-dist-bar-wrap'>
+											<div
+												className='review-dist-bar'
+												style={{ width: `${Math.min(100, d.percent)}%` }}
+											/>
+										</div>
+										<span className='review-dist-pct'>{d.percent}%</span>
+									</div>
+								);
+							})}
+						</div>
+					) : null}
+					<div className='review-toolbar'>
+						<label className='review-order'>
+							<span>Ordenar</span>
+							<select value={orden} onChange={(e) => setOrden(e.target.value)}>
+								<option value='reciente'>Más recientes</option>
+								<option value='mayor'>Mejor puntuación</option>
+								<option value='menor'>Menor puntuación</option>
+							</select>
+						</label>
+					</div>
+					{reportToast ? <p className='review-success'>{reportToast}</p> : null}
 					{reviewsState.loading && reviewsState.items.length === 0 ? (
 						<p>Cargando reseñas…</p>
 					) : reviewsState.items.length === 0 ? (
-						<p className='muted'>Nadie ha publicado reseñas aún.</p>
+						<p className='muted'>{reviewListMeta.emptyHint || 'Nadie ha publicado reseñas aún.'}</p>
 					) : (
 						<ul className='review-list'>
 							{reviewsState.items.map((r) => (
@@ -385,8 +429,28 @@ export function ProviderProfilePage() {
 												: 'Usuario'}
 										</span>
 										<span className='review-date'>{formatReviewDate(r.createdAt)}</span>
+										{getStoredAuthToken() && canReportReview(r) ? (
+											<button
+												type='button'
+												className='link-button review-report-link'
+												onClick={() => {
+													setReportReviewId(String(r.id));
+													setReportOpen(true);
+												}}
+											>
+												Reportar
+											</button>
+										) : null}
 									</div>
 									{r.comment ? <p className='review-comment'>{r.comment}</p> : null}
+									{r.providerResponse ? (
+										<div className='provider-reply public'>
+											<p className='provider-reply-label'>{r.providerResponse.label || 'Respuesta'}</p>
+											<p className='review-comment' style={{ marginTop: '0.25rem' }}>
+												{r.providerResponse.text}
+											</p>
+										</div>
+									) : null}
 								</li>
 							))}
 						</ul>
@@ -401,50 +465,28 @@ export function ProviderProfilePage() {
 							{reviewsState.loading ? 'Cargando…' : 'Cargar más reseñas'}
 						</button>
 					) : null}
-
-					<h3 className='review-form-title'>Dejar una reseña</h3>
-					{getStoredAuthToken() ? (
-						<form className='review-form' onSubmit={onSubmitReview}>
-							<label className='review-field'>
-								<span>Calificación</span>
-								<select
-									value={reviewForm.rating}
-									onChange={(e) =>
-										setReviewForm((f) => ({ ...f, rating: Number(e.target.value) }))
-									}
-								>
-									{[5, 4, 3, 2, 1].map((n) => (
-										<option key={n} value={n}>
-											{n} estrellas
-										</option>
-									))}
-								</select>
-							</label>
-							<label className='review-field'>
-								<span>Comentario (opcional)</span>
-								<textarea
-									value={reviewForm.comment}
-									onChange={(e) => setReviewForm((f) => ({ ...f, comment: e.target.value }))}
-									rows={3}
-									maxLength={2000}
-									placeholder='Cuéntanos tu experiencia'
-								/>
-							</label>
-							<button type='submit' className='review-submit' disabled={reviewSubmitting}>
-								{reviewSubmitting ? 'Enviando…' : 'Publicar reseña'}
-							</button>
-							{reviewError ? <p className='error review-msg'>{reviewError}</p> : null}
-							{reviewSuccess ? <p className='review-success'>{reviewSuccess}</p> : null}
-						</form>
-					) : (
-						<p className='muted'>
-							Para publicar una reseña necesitas iniciar sesión como dueño. Con el login integrado, el token
-							se enviará automáticamente; mientras tanto puedes guardar el JWT en{' '}
-							<code>localStorage</code> bajo la clave configurada (por defecto{' '}
-							<code>petconnect_token</code>).
-						</p>
-					)}
+					<p className='muted' style={{ marginTop: '1.25rem' }}>
+						{isOwner ? (
+							<>
+								Las reseñas se vinculan a citas finalizadas. Puedes valorar a este profesional desde{' '}
+								<Link to='/mis-reservas'>Mis reservas</Link> al terminar un servicio.
+							</>
+						) : getStoredAuthToken() ? (
+							<>Para publicar, agenda un servicio y, una vez finalizada la cita, deja tu opinión en Mis reservas.</>
+						) : (
+							<>Inicia sesión como dueño, confirma una cita y podrás dejar reseña desde Mis reservas.</>
+						)}
+					</p>
 				</section>
+				<ReviewReportModal
+					open={reportOpen}
+					reviewId={reportReviewId}
+					onClose={() => {
+						setReportOpen(false);
+						setReportReviewId(null);
+					}}
+					onDone={(msg) => setReportToast(msg)}
+				/>
 
 				{!hasCoordinates ? (
 					<p className='no-map-note'>

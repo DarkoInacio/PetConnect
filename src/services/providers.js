@@ -14,6 +14,18 @@ export function getProviderProfilePath(p) {
 	return `/proveedores/${p.id}`;
 }
 
+/**
+ * Añade `?resenaCita=` a la ruta de perfil (Mis reservas → perfil del proveedor → reseña).
+ * @param {string} profilePath
+ * @param {string} appointmentId
+ */
+export function withResenaCitaParam(profilePath, appointmentId) {
+	if (!profilePath || appointmentId == null || String(appointmentId).trim() === '') return profilePath;
+	const id = String(appointmentId).trim();
+	const q = `resenaCita=${encodeURIComponent(id)}`;
+	return profilePath.includes('?') ? `${profilePath}&${q}` : `${profilePath}?${q}`;
+}
+
 export async function fetchProvidersMapData(params = {}, signal) {
 	const { data } = await api.get('/proveedores/mapa', {
 		params,
@@ -37,18 +49,20 @@ export async function fetchProviderPublicProfileBySlug(tipo, slug, signal) {
 	return data;
 }
 
-export async function fetchProviderReviews(providerId, { pagina = 1, limite = 10 } = {}, signal) {
+/**
+ * Listado público de reseñas. `orden`: reciente | mayor | menor (también acepta el backend alta/baja, rating_mayor/menor).
+ * @param {string} providerId
+ * @param {{ pagina?: number, limite?: number, orden?: string }} [params]
+ * @param {AbortSignal} [signal]
+ */
+export async function fetchProviderReviews(
+	providerId,
+	{ pagina = 1, limite = 5, orden = 'reciente' } = {},
+	signal
+) {
 	const { data } = await api.get(`/proveedores/${providerId}/reviews`, {
-		params: { pagina, limite },
+		params: { pagina, limite, orden },
 		signal
-	});
-	return data;
-}
-
-export async function createProviderReview(providerId, { rating, comment }) {
-	const { data } = await api.post(`/proveedores/${providerId}/reviews`, {
-		rating,
-		comment
 	});
 	return data;
 }
