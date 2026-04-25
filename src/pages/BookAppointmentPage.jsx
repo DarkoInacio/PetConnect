@@ -387,7 +387,7 @@ export function BookAppointmentPage() {
 			</nav>
 
 			{step === 1 ? (
-				<div className="book-appt-form">
+				<div className="book-appt-form app-form">
 					<section className="book-card" aria-labelledby="book-schedule-heading">
 						<div className="book-card__head">
 							<span className="book-card__icon" aria-hidden>
@@ -614,7 +614,7 @@ export function BookAppointmentPage() {
 								<Check className="book-confirm-tick" size={32} strokeWidth={2.2} />
 								<p className="review-success book-confirm-oktext">{formOk}</p>
 							</div>
-							<Link to="/mis-reservas" className="book-cta-btn save-profile-btn" style={{ textAlign: 'center' }}>
+							<Link to="/cuenta/reservas" className="book-cta-btn save-profile-btn" style={{ textAlign: 'center' }}>
 								Ver en «Mis reservas»
 							</Link>
 						</div>

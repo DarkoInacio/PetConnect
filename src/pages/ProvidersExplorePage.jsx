@@ -36,7 +36,7 @@ export function ProvidersExplorePage() {
 			<Link className="back-link" to="/">
 				← Volver al mapa
 			</Link>
-			<div className="page-surface page-surface--wide page-surface--explore">
+			<div className="page-surface page-surface--wide page-surface--explore app-form">
 				<header className="page-hero page-hero--explore">
 					<h1>Explorar clínicas, paseo y cuidado</h1>
 					<p>

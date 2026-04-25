@@ -22,8 +22,8 @@ export function getProviderProfilePath(p) {
 export function withResenaCitaParam(profilePath, appointmentId) {
 	if (!profilePath || appointmentId == null || String(appointmentId).trim() === '') return profilePath;
 	const id = String(appointmentId).trim();
-	const q = `resenaCita=${encodeURIComponent(id)}`;
-	return profilePath.includes('?') ? `${profilePath}&${q}` : `${profilePath}?${q}`;
+	const hasQ = profilePath.includes('?');
+	return `${profilePath}${hasQ ? '&' : '?'}pestana=resenas&resenaCita=${encodeURIComponent(id)}`;
 }
 
 export async function fetchProvidersMapData(params = {}, signal) {

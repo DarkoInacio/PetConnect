@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useOutletContext } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
-import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
 import { fetchMyBookings } from '../services/bookings';
-import { getProviderProfilePath, withResenaCitaParam } from '../services/providers';
+import { getProviderProfilePath } from '../services/providers';
 import { cancelMyAppointment } from '../services/appointments';
-import { cancelCitaAsOwner, rescheduleCita } from '../services/citas';
 import {
 	createReviewForAppointment,
 	fetchReviewEligibility,
@@ -22,16 +20,8 @@ const APPOINTMENT_STATUS_LABELS = {
 	no_show: 'No asistió'
 };
 
-const CITA_ESTADO_LABELS = {
-	pendiente: 'Pendiente',
-	confirmada: 'Confirmada',
-	completada: 'Completada',
-	cancelada: 'Cancelada'
-};
-
 const BOOKING_SOURCE_LABELS = {
 	availability_slot: 'Reserva por agenda',
-	legacy_cita: 'Cita (sincronizada)',
 	walker_request: 'Solicitud paseo / cuidado'
 };
 
@@ -75,7 +65,7 @@ function providerLinkTarget(p) {
 function statusBadgeClass(status) {
 	const s = String(status || '');
 	if (s.includes('cancel')) return 'booking-status cancelled';
-	if (s === 'completed' || s === 'completada') return 'booking-status done';
+	if (s === 'completed') return 'booking-status done';
 	if (s === 'pending_confirmation' || s === 'pendiente') return 'booking-status pending';
 	return 'booking-status ok';
 }
@@ -94,40 +84,21 @@ function appointmentShowsReviewButton(row) {
 	return st === 'completed' || st === 'confirmed';
 }
 
-/** Enlace con ?resenaCita= hacia el perfil (cualquier cita no cancelada, para reseñar o ver el motivo al entrar). */
-function appointmentCanOpenProfileResenaLink(row) {
-	if (row.kind !== 'appointment') return false;
-	if (['cancelled_by_owner', 'cancelled_by_provider'].includes(row.status)) return false;
-	return true;
-}
-
 function getBookingRowMeta(row) {
-	const isLegacy = row.kind === 'cita_legacy';
-	const prov = isLegacy ? row.proveedor : row.provider;
+	const prov = row.provider;
 	const href = providerLinkTarget(prov);
-	const statusLabel = isLegacy
-		? CITA_ESTADO_LABELS[row.status] || row.status
-		: APPOINTMENT_STATUS_LABELS[row.status] || row.status;
-	const originLabel = isLegacy
-		? 'Cita (histórico)'
-		: BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource || '—';
-	let detail = '—';
-	if (isLegacy) {
-		const m = row.mascota;
-		detail = [row.servicio, m ? `${m.nombre} (${m.especie})` : null]
-			.filter(Boolean)
-			.join(' · ');
-	} else {
-		const pet = row.pet;
-		const petStr = pet?.name
-			? `${pet.name}${pet.species ? ` (${pet.species})` : ''}`
-			: null;
-		detail = [petStr, row.reason].filter(Boolean).join(' · ') || '—';
-	}
-	return { isLegacy, prov, href, statusLabel, originLabel, detail };
+	const statusLabel = APPOINTMENT_STATUS_LABELS[row.status] || row.status;
+	const originLabel = BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource || '—';
+	const pet = row.pet;
+	const petStr = pet?.name
+		? `${pet.name}${pet.species ? ` (${pet.species})` : ''}`
+		: null;
+	const detail = [petStr, row.reason].filter(Boolean).join(' · ') || '—';
+	return { prov, href, statusLabel, originLabel, detail };
 }
 
 export function MyBookingsPage() {
+	const { setSubnavSuppressed } = useOutletContext() || {};
 	const { user, loading: authLoading } = useAuth();
 	const [data, setData] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -154,7 +125,10 @@ export function MyBookingsPage() {
 				const e = await fetchReviewEligibility(appointmentId(ownerReviewRow), c.signal);
 				setElig(e);
 				if (e?.review) {
-					setOwnerForm({ rating: e.review.rating, comment: e.review.comment || '' });
+					setOwnerForm({
+						rating: e.review.rating,
+						comment: e.review.comment || e.review.observation || ''
+					});
 				} else {
 					setOwnerForm({ rating: 5, comment: '' });
 				}
@@ -168,6 +142,14 @@ export function MyBookingsPage() {
 		})();
 		return () => c.abort();
 	}, [ownerReviewRow]);
+
+	useEffect(() => {
+		if (typeof setSubnavSuppressed === 'function') {
+			setSubnavSuppressed(Boolean(ownerReviewRow));
+			return () => setSubnavSuppressed(false);
+		}
+		return undefined;
+	}, [ownerReviewRow, setSubnavSuppressed]);
 
 	useEffect(() => {
 		if (authLoading || !user || user.role !== 'dueno') return;
@@ -204,55 +186,16 @@ export function MyBookingsPage() {
 		setActionMsg('');
 		try {
 			await cancelMyAppointment(appointmentId(row), reason.trim().slice(0, 200));
-			setActionMsg('Cita cancelada.');
+			setActionMsg('Reserva cancelada.');
 			await reloadBookings();
 		} catch (err) {
 			setActionMsg(err.response?.data?.message || 'No se pudo cancelar.');
-		}
-	}
-
-	async function onCancelCitaLegacy(row) {
-		if (!window.confirm('¿Cancelar esta cita?')) return;
-		setActionMsg('');
-		try {
-			await cancelCitaAsOwner(String(row.id));
-			setActionMsg('Cita cancelada.');
-			await reloadBookings();
-		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo cancelar.');
-		}
-	}
-
-	async function onRescheduleCita(row) {
-		const local = window.prompt('Nueva fecha y hora (ej. 2026-05-01T15:00 en hora local):');
-		if (!local || !local.trim()) return;
-		const d = new Date(local.trim());
-		if (Number.isNaN(d.getTime())) {
-			setActionMsg('Fecha inválida.');
-			return;
-		}
-		setActionMsg('');
-		try {
-			await rescheduleCita(String(row.id), d.toISOString());
-			setActionMsg('Cita reagendada.');
-			await reloadBookings();
-		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo reagendar.');
 		}
 	}
 
 	function canCancelOwner(row) {
-		if (row.kind === 'cita_legacy') {
-			return ['pendiente', 'confirmada'].includes(row.status);
-		}
-		if (row.kind === 'appointment') {
-			return ['pending_confirmation', 'confirmed'].includes(row.status);
-		}
-		return false;
-	}
-
-	function canRescheduleLegacy(row) {
-		return row.kind === 'cita_legacy' && ['pendiente', 'confirmada'].includes(row.status);
+		if (row.kind !== 'appointment') return false;
+		return ['pending_confirmation', 'confirmed'].includes(row.status);
 	}
 
 	function closeOwnerReview() {
@@ -280,6 +223,11 @@ export function MyBookingsPage() {
 				});
 				setOwnerReviewMsg(res.message || 'Reseña publicada.');
 			} else if (elig?.hasReview && elig.reviewId) {
+				if (elig.canEdit === false) {
+					setOwnerReviewMsg('El plazo de edición (24 h) expiró.');
+					setOwnerReviewSubmit(false);
+					return;
+				}
 				const res = await updateMyReview(String(elig.reviewId), {
 					rating: Number(ownerForm.rating),
 					comment: ownerForm.comment
@@ -295,7 +243,10 @@ export function MyBookingsPage() {
 				const e = await fetchReviewEligibility(id);
 				setElig(e);
 				if (e?.review) {
-					setOwnerForm({ rating: e.review.rating, comment: e.review.comment || '' });
+					setOwnerForm({
+						rating: e.review.rating,
+						comment: e.review.comment || e.review.observation || ''
+					});
 				}
 			} catch {
 				// ok
@@ -309,26 +260,12 @@ export function MyBookingsPage() {
 
 	function renderOwnerBookingActions(row) {
 		const showReview = row.kind === 'appointment' && appointmentShowsReviewButton(row);
-		const hasAny =
-			(row.kind === 'appointment' && canCancelOwner(row)) ||
-			(row.kind === 'cita_legacy' && canCancelOwner(row)) ||
-			canRescheduleLegacy(row) ||
-			showReview;
+		const hasAny = (row.kind === 'appointment' && canCancelOwner(row)) || showReview;
 		return (
 			<>
 				{canCancelOwner(row) && row.kind === 'appointment' ? (
 					<button type="button" className="btn-reject btn-sm" onClick={() => onCancelAppointment(row)}>
 						Cancelar reserva
-					</button>
-				) : null}
-				{canCancelOwner(row) && row.kind === 'cita_legacy' ? (
-					<button type="button" className="btn-reject btn-sm" onClick={() => onCancelCitaLegacy(row)}>
-						Cancelar cita
-					</button>
-				) : null}
-				{canRescheduleLegacy(row) ? (
-					<button type="button" className="btn-sm" onClick={() => onRescheduleCita(row)}>
-						Reagendar
 					</button>
 				) : null}
 				{showReview ? (
@@ -360,7 +297,7 @@ export function MyBookingsPage() {
 	}
 
 	if (!user) {
-		return <Navigate to='/login' replace state={{ from: '/mis-reservas' }} />;
+		return <Navigate to='/login' replace state={{ from: '/cuenta/reservas' }} />;
 	}
 
 	if (user.role !== 'dueno') {
@@ -383,19 +320,17 @@ export function MyBookingsPage() {
 	const items = Array.isArray(data?.items) ? data.items : [];
 
 	return (
-		<div className="page bookings-page">
-			<Link className="back-link" to="/">
-				← Volver al mapa
-			</Link>
-			<div className="page-surface page-surface--bookings">
+		<div className="bookings-page owner-hub-section">
+			<div className="page-surface page-surface--bookings app-form">
 				<header className="page-hero">
-					<h1>Mis reservas</h1>
-					<p>Agenda, solicitudes a paseadores o cuidadores e historial de citas, todo en un solo lugar.</p>
+					<h1>Reservas</h1>
+					<p>Agenda, solicitudes a paseadores o cuidadores e historial, todo en un solo lugar.</p>
 				</header>
-				<OwnerSubnav />
 				<p className="muted" style={{ maxWidth: '42rem', marginTop: '0.5rem' }}>
-					Para reseñar, abre <strong>Reseña</strong> o usa <strong>Ingresar a la clínica y dejar reseña</strong> en
-					agenda o paseo/cuidado. Las <strong>Cita (histórico)</strong> no usan el mismo sistema.
+					Aquí ves el historial: reseñas a veterinarios, cuidadores y paseadores tras un servicio{' '}
+					<strong>completado</strong>. Puntuación con estrellas y observación (opcional, hasta 200
+					caracteres). La reseña se hace con el botón en cada fila; mientras reseñas, el resto de pestañas
+					de tu cuenta se oculta.
 				</p>
 
 				{loading ? (
@@ -430,10 +365,6 @@ export function MyBookingsPage() {
 						{items.map((row) => {
 							const m = getBookingRowMeta(row);
 							const aid = appointmentId(row);
-							const resenaPath =
-								!m.isLegacy && m.href && aid
-									? withResenaCitaParam(m.href, aid)
-									: null;
 							return (
 								<article
 									key={`card-${row.kind}-${aid || row.id || row._id || 'row'}`}
@@ -443,20 +374,7 @@ export function MyBookingsPage() {
 									<p className="booking-card__value">{formatRange(row.startAt, row.endAt)}</p>
 									<p className="booking-card__label">Proveedor</p>
 									<div className="booking-card__value">
-										{m.href ? (
-											<div className="bookings-provider-cell">
-												<Link to={m.href}>{providerLabel(m.prov)}</Link>
-												{resenaPath && appointmentCanOpenProfileResenaLink(row) ? (
-													<div className="bookings-ingress">
-														<Link to={resenaPath} className="bookings-ingress-link">
-															Ingresar a la clínica y dejar reseña
-														</Link>
-													</div>
-												) : null}
-											</div>
-										) : (
-											providerLabel(m.prov)
-										)}
+										{m.href ? <Link to={m.href}>{providerLabel(m.prov)}</Link> : providerLabel(m.prov)}
 									</div>
 									<p className="booking-card__label">Origen</p>
 									<p className="booking-card__value">{m.originLabel}</p>
@@ -496,30 +414,11 @@ export function MyBookingsPage() {
 								{items.map((row) => {
 									const m = getBookingRowMeta(row);
 									const aid = appointmentId(row);
-									const resenaPath =
-										!m.isLegacy && m.href && aid
-											? withResenaCitaParam(m.href, aid)
-											: null;
 									return (
 										<tr key={`${row.kind}-${aid || row.id || row._id || 'row'}`}>
 											<td>{formatRange(row.startAt, row.endAt)}</td>
 											<td>{m.originLabel}</td>
-											<td>
-												{m.href ? (
-													<div className="bookings-provider-cell">
-														<Link to={m.href}>{providerLabel(m.prov)}</Link>
-														{resenaPath && appointmentCanOpenProfileResenaLink(row) ? (
-															<div className="bookings-ingress">
-																<Link to={resenaPath} className="bookings-ingress-link">
-																	Ingresar a la clínica y dejar reseña
-																</Link>
-															</div>
-														) : null}
-													</div>
-												) : (
-													providerLabel(m.prov)
-												)}
-											</td>
+											<td>{m.href ? <Link to={m.href}>{providerLabel(m.prov)}</Link> : providerLabel(m.prov)}</td>
 											<td className="bookings-detail">{m.detail}</td>
 											<td>
 												<span className={statusBadgeClass(row.status)}>{m.statusLabel}</span>
@@ -568,6 +467,27 @@ export function MyBookingsPage() {
 							</p>
 						) : null}
 						{!eligLoading && elig && (elig.canReview || elig.hasReview) ? (
+							elig.hasReview && elig.canEdit === false ? (
+								<div>
+									<p>
+										<strong>Calificación:</strong> {ownerForm.rating} / 5
+									</p>
+									{ownerForm.comment ? (
+										<p>
+											<strong>Observación:</strong> {ownerForm.comment}
+										</p>
+									) : null}
+									<p className="muted" style={{ fontSize: '0.9rem' }}>
+										La edición del texto y las estrellas solo estuvo disponible durante 24 h tras
+										publicar.
+									</p>
+									<div className="report-modal-actions">
+										<button type="button" className="btn-sm" onClick={closeOwnerReview}>
+											Cerrar
+										</button>
+									</div>
+								</div>
+							) : (
 							<form
 								className="review-form"
 								onSubmit={(e) => {
@@ -576,7 +496,7 @@ export function MyBookingsPage() {
 								}}
 							>
 								<label className="review-field">
-									<span>Calificación</span>
+									<span>Calificación (estrellas)</span>
 									<select
 										value={ownerForm.rating}
 										onChange={(e) =>
@@ -591,12 +511,12 @@ export function MyBookingsPage() {
 									</select>
 								</label>
 								<label className="review-field">
-									<span>Comentario (opcional)</span>
+									<span>Observación (opcional, máx. 200 caracteres)</span>
 									<textarea
 										value={ownerForm.comment}
 										onChange={(e) => setOwnerForm((f) => ({ ...f, comment: e.target.value }))}
 										rows={3}
-										maxLength={2000}
+										maxLength={200}
 									/>
 								</label>
 								{elig.hasReview ? (
@@ -619,6 +539,7 @@ export function MyBookingsPage() {
 									</button>
 								</div>
 							</form>
+							)
 						) : null}
 					</div>
 				</div>

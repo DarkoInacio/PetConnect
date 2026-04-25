@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { hasRole } from '../lib/userRoles';
 import { WEEK_DAYS, WEEK_DAY_LABELS } from '../constants/providerWeek';
 import { getProviderProfilePath, updateMyProviderProfile } from '../services/providers';
 
@@ -138,14 +139,17 @@ export function ProviderMiPerfilPage() {
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
+	/** Paseador/cuidador y veterinaria: sección activa (una a la vez) */
+	const [profileSection, setProfileSection] = useState('visibilidad');
 
 	useEffect(() => {
-		if (user?.role === 'proveedor') {
+		if (user && hasRole(user, 'proveedor')) {
 			setForm(userToForm(user));
 		}
 	}, [user]);
 
-	if (!loading && (!user || user.role !== 'proveedor')) {
+	/* Cuenta dueño+proveedor: role sigue "dueno" pero roles incluye proveedor. */
+	if (!loading && (!user || !hasRole(user, 'proveedor'))) {
 		return <Navigate to='/login' replace state={{ from: '/proveedor/mi-perfil' }} />;
 	}
 
@@ -159,6 +163,35 @@ export function ProviderMiPerfilPage() {
 
 	const isWalker = user.providerType === 'paseador' || user.providerType === 'cuidador';
 	const isVet = user.providerType === 'veterinaria';
+
+	const WALKER_SECTIONS = [
+		{ id: 'visibilidad', label: 'Visibilidad' },
+		{ id: 'contacto', label: 'Perfil' },
+		{ id: 'ubicacion', label: 'Ubicación' },
+		{ id: 'disponibilidad', label: 'Disponibilidad y precios' },
+		{ id: 'redes', label: 'Redes' }
+	];
+
+	const VET_SECTIONS = [
+		{ id: 'visibilidad', label: 'Visibilidad' },
+		{ id: 'contacto', label: 'Horario y servicios' },
+		{ id: 'ubicacion', label: 'Ubicación' },
+		{ id: 'redes', label: 'Redes' }
+	];
+
+	const useSectionedLayout = isVet || isWalker;
+	const profileSections = isVet ? VET_SECTIONS : WALKER_SECTIONS;
+	const activeIdx = profileSections.findIndex((s) => s.id === profileSection);
+	const sectionStep = activeIdx >= 0 ? activeIdx + 1 : 1;
+	const sectionCount = profileSections.length;
+
+	/** Misma lógica para clínica y paseo/cuidado: ocultar bloques sin desmontar campos. */
+	function profilePanelClass(section) {
+		if (!useSectionedLayout) return 'provider-mi-ficha__group';
+		return profileSection === section
+			? 'provider-mi-ficha__group'
+			: 'provider-mi-ficha__group provider-mi-ficha__group--hidden';
+	}
 
 	function setField(key, value) {
 		setForm((f) => ({ ...f, [key]: value }));
@@ -310,29 +343,91 @@ export function ProviderMiPerfilPage() {
 				: null;
 
 	return (
-		<div className='page provider-edit-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
+		<div
+			className={
+				useSectionedLayout
+					? 'page provider-edit-page provider-mi-ficha--sectioned'
+					: 'page provider-edit-page'
+			}
+		>
+			<Link className='back-link' to='/proveedor'>
+				← Volver al panel
 			</Link>
-			<h1>{isVet ? 'Configuración de la clínica' : 'Configurar mi perfil de servicio'}</h1>
-			<p className='muted'>
-				Tipo: <strong>{user.providerType === 'veterinaria' ? 'veterinaria' : user.providerType}</strong>
-			</p>
-			{user.status && user.status !== 'aprobado' ? (
-				<p className='warn-banner'>
-					Estado: <strong>{user.status === 'en_revision' ? 'en revisión' : user.status}</strong>. El enlace
-					«perfil público» solo responde cuando un administrador marca la cuenta como aprobada.
-				</p>
-			) : null}
-			{user.status === 'aprobado' && previewPath ? (
-				<p>
-					<Link to={previewPath}>Ver perfil público</Link>
-				</p>
-			) : user.status !== 'aprobado' && previewPath ? (
-				<p className='hint muted'>Previsualizar URL: {previewPath} (en revisión, no accesible aún para visitantes)</p>
-			) : null}
+			<header className='provider-mi-ficha__intro'>
+				<h1>
+					{isVet ? 'Configuración de clínica' : isWalker ? 'Tu ficha de paseo / cuidado' : 'Configurar perfil de servicio'}
+				</h1>
+				{useSectionedLayout ? (
+					<p className='provider-mi-ficha__lede'>
+						Edita por secciones y pulsa <strong>Guardar cambios</strong> al final. Los datos se recuerdan al cambiar de
+						pestaña.
+					</p>
+				) : null}
+				{user.status && user.status !== 'aprobado' ? (
+					<p className='warn-banner' style={{ margin: '0.4rem 0 0' }}>
+						{user.status === 'en_revision' ? 'Cuenta en revisión' : `Estado: ${user.status}`} · el perfil público
+						solo aplica con cuenta aprobada
+					</p>
+				) : null}
+				{previewPath ? (
+					<p className='provider-mi-ficha__preview' style={{ margin: '0.5rem 0 0' }}>
+						{user.status === 'aprobado' ? (
+							<Link to={previewPath}>Abrir ficha pública</Link>
+						) : (
+							<span className='hint muted' title={previewPath}>
+								URL pública: se activará con la aprobación
+							</span>
+						)}
+					</p>
+				) : null}
+			</header>
 
-			<form className='provider-edit-form' onSubmit={onSubmit}>
+			{useSectionedLayout && (
+				<div className='provider-mi-ficha__nav-card' aria-label='Navegación de secciones'>
+					<div className='provider-mi-ficha__nav-head'>
+						<div>
+							<p className='provider-mi-ficha__nav-kicker'>Tu ficha</p>
+							<p className='provider-mi-ficha__nav-title'>
+								{profileSections.find((s) => s.id === profileSection)?.label ?? 'Secciones'}
+							</p>
+						</div>
+						<p
+							className='provider-mi-ficha__nav-step'
+							role='status'
+							aria-live='polite'
+							aria-atomic='true'
+						>
+							{sectionStep} de {sectionCount}
+						</p>
+					</div>
+					<div
+						className='provider-mi-ficha__tab-scroll'
+						role='tablist'
+						aria-label='Secciones de la ficha'
+					>
+						{profileSections.map((s) => (
+							<button
+								key={s.id}
+								type='button'
+								role='tab'
+								aria-selected={profileSection === s.id}
+								id={`provider-mi-ficha-tab-${s.id}`}
+								className={
+									profileSection === s.id
+										? 'provider-mi-ficha__tab is-active'
+										: 'provider-mi-ficha__tab'
+								}
+								onClick={() => setProfileSection(s.id)}
+							>
+								{s.label}
+							</button>
+						))}
+					</div>
+				</div>
+			)}
+
+			<form className='app-form provider-edit-form' onSubmit={onSubmit} id='provider-mi-ficha-form'>
+				<div className={profilePanelClass('visibilidad')}>
 				<fieldset className='edit-fieldset'>
 					<legend>Visibilidad</legend>
 					<label className='check-row'>
@@ -343,11 +438,11 @@ export function ProviderMiPerfilPage() {
 						/>
 						<span>Perfil publicado (visible en mapa y URLs públicas)</span>
 					</label>
-					<p className='hint muted'>
-						{isWalker
-							? 'Para publicar como paseador/cuidador el backend exige comunas, tipos de mascota, disponibilidad semanal con horarios y al menos una tarifa.'
-							: null}
-					</p>
+					{!isWalker ? (
+						<p className='hint muted' style={{ marginTop: 6 }}>
+							Desmarca &quot;publicado&quot; para ocultarte en el mapa sin borrar datos.
+						</p>
+					) : null}
 					<label className='edit-field'>
 						<span>Slug público (minúsculas, sin espacios: usa -)</span>
 						<input
@@ -375,7 +470,9 @@ export function ProviderMiPerfilPage() {
 						</select>
 					</label>
 				</fieldset>
+				</div>
 
+				<div className={profilePanelClass('contacto')}>
 				<fieldset className='edit-fieldset'>
 					<legend>Contacto y descripción</legend>
 					<label className='edit-field'>
@@ -492,10 +589,12 @@ export function ProviderMiPerfilPage() {
 						</div>
 					) : null}
 				</fieldset>
+				</div>
 
+				<div className={profilePanelClass('ubicacion')}>
 				<fieldset className='edit-fieldset'>
 					<legend>Dirección</legend>
-					<p className='hint muted'>El mapa se calcula con calle, comuna y ciudad (geocodificación en el servidor).</p>
+					<p className='hint muted'>Calle, comuna y ciudad para el mapa.</p>
 					<label className='edit-field'>
 						<span>Calle</span>
 						<input value={form.addressStreet} onChange={(e) => setField('addressStreet', e.target.value)} />
@@ -509,11 +608,17 @@ export function ProviderMiPerfilPage() {
 						<input value={form.addressCity} onChange={(e) => setField('addressCity', e.target.value)} />
 					</label>
 				</fieldset>
+				</div>
 
 				{isWalker ? (
+					<div className={profilePanelClass('disponibilidad')}>
+					<p className='hint muted' style={{ margin: '0 0 0.6rem' }}>
+						Para aparecer en el buscador hace falta: comunas, tipos de mascota, al menos un día con horario y
+						una tarifa o referencia.
+					</p>
 					<fieldset className='edit-fieldset'>
 						<legend>Tarifa referencial (opcional)</legend>
-						<p className='hint muted'>Visible en búsquedas, aparte de las tarifas paseo/cuidado detalladas abajo.</p>
+						<p className='hint muted'>Suma a la ficha pública; abajo, tarifas por tipo de servicio.</p>
 						<div className='edit-row-2'>
 							<label className='edit-field'>
 								<span>Monto</span>
@@ -529,31 +634,9 @@ export function ProviderMiPerfilPage() {
 							<input value={form.refCurrency} onChange={(e) => setField('refCurrency', e.target.value)} />
 						</label>
 					</fieldset>
-				) : null}
 
-				<fieldset className='edit-fieldset'>
-					<legend>Redes</legend>
-					<label className='edit-field'>
-						<span>Instagram</span>
-						<input value={form.socialInstagram} onChange={(e) => setField('socialInstagram', e.target.value)} />
-					</label>
-					<label className='edit-field'>
-						<span>Facebook</span>
-						<input value={form.socialFacebook} onChange={(e) => setField('socialFacebook', e.target.value)} />
-					</label>
-					<label className='edit-field'>
-						<span>Twitter / X</span>
-						<input value={form.socialTwitter} onChange={(e) => setField('socialTwitter', e.target.value)} />
-					</label>
-					<label className='edit-field'>
-						<span>Sitio web</span>
-						<input value={form.socialWebsite} onChange={(e) => setField('socialWebsite', e.target.value)} />
-					</label>
-				</fieldset>
-
-				{isWalker ? (
 					<fieldset className='edit-fieldset'>
-						<legend>Paseador / cuidador (HU-10)</legend>
+						<legend>Zona, disponibilidad y precios</legend>
 						<label className='edit-field'>
 							<span>Comunas donde atiendes (separadas por coma)</span>
 							<input
@@ -646,11 +729,42 @@ export function ProviderMiPerfilPage() {
 							</div>
 						</div>
 					</fieldset>
+					</div>
 				) : null}
 
-				<button type='submit' className='save-profile-btn' disabled={saving}>
-					{saving ? 'Guardando…' : 'Guardar cambios'}
-				</button>
+				<div className={profilePanelClass('redes')}>
+					<fieldset className='edit-fieldset'>
+						<legend>Redes</legend>
+						<label className='edit-field'>
+							<span>Instagram</span>
+							<input value={form.socialInstagram} onChange={(e) => setField('socialInstagram', e.target.value)} />
+						</label>
+						<label className='edit-field'>
+							<span>Facebook</span>
+							<input value={form.socialFacebook} onChange={(e) => setField('socialFacebook', e.target.value)} />
+						</label>
+						<label className='edit-field'>
+							<span>Twitter / X</span>
+							<input value={form.socialTwitter} onChange={(e) => setField('socialTwitter', e.target.value)} />
+						</label>
+						<label className='edit-field'>
+							<span>Sitio web</span>
+							<input value={form.socialWebsite} onChange={(e) => setField('socialWebsite', e.target.value)} />
+						</label>
+					</fieldset>
+				</div>
+
+				<div
+					className={
+						useSectionedLayout
+							? 'provider-mi-ficha__form-actions'
+							: 'provider-mi-ficha__form-actions provider-mi-ficha__form-actions--inline'
+					}
+				>
+					<button type='submit' className='save-profile-btn' disabled={saving}>
+						{saving ? 'Guardando…' : 'Guardar cambios'}
+					</button>
+				</div>
 				{message ? <p className='review-success'>{message}</p> : null}
 				{error ? <p className='error'>{error}</p> : null}
 			</form>

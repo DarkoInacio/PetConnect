@@ -1,9 +1,9 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayoutHeader } from './components/AppLayoutHeader';
+import { OwnerLayout } from './components/OwnerLayout';
 import { AdminProvidersPage } from './pages/AdminProvidersPage';
 import { AdminReviewReportsPage } from './pages/AdminReviewReportsPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
-import { CitasLegacyPage } from './pages/CitasLegacyPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
@@ -46,16 +46,24 @@ function App() {
 				<Route path='/proveedor' element={<ProviderDashboardPage />} />
 				<Route path='/proveedor/mi-perfil' element={<ProviderMiPerfilPage />} />
 				<Route path='/proveedor/mis-resenas' element={<ProviderReviewsPage />} />
-				<Route path='/mis-reservas' element={<MyBookingsPage />} />
-				<Route path='/citas' element={<CitasLegacyPage />} />
-				<Route path='/mi-perfil' element={<OwnerProfilePage />} />
-				<Route path='/mi-perfil/ofrecer-servicios' element={<OfferProviderServicesPage />} />
+
+				<Route path='/cuenta' element={<OwnerLayout />}>
+					<Route index element={<Navigate to="reservas" replace />} />
+					<Route path='reservas' element={<MyBookingsPage />} />
+					<Route path='perfil' element={<OwnerProfilePage />} />
+					<Route path='ofrecer-servicios' element={<OfferProviderServicesPage />} />
+					<Route path='mascotas' element={<MyPetsPage />} />
+				</Route>
+				<Route path='/mis-reservas' element={<Navigate to="/cuenta/reservas" replace />} />
+				<Route path='/mi-perfil/ofrecer-servicios' element={<Navigate to="/cuenta/ofrecer-servicios" replace />} />
+				<Route path='/mi-perfil' element={<Navigate to="/cuenta/perfil" replace />} />
+
 				<Route path='/mascotas/nueva' element={<PetFormPage />} />
 				<Route path='/mascotas/:petId/edit' element={<PetFormPage />} />
 				<Route path='/mascotas/:petId/ficha' element={<PetMedicalPage />} />
 				<Route path='/mascotas/:petId/atencion/:encounterId' element={<PetEncounterDetailPage />} />
 				<Route path='/mascotas/:petId' element={<PetDetailPage />} />
-				<Route path='/mascotas' element={<MyPetsPage />} />
+				<Route path='/mascotas' element={<Navigate to="/cuenta/mascotas" replace />} />
 				<Route path='/admin/proveedores' element={<AdminProvidersPage />} />
 				<Route path='/admin/resenas-reportes' element={<AdminReviewReportsPage />} />
 				<Route path='/proveedor/atencion-clinica' element={<VetClinicalPage />} />

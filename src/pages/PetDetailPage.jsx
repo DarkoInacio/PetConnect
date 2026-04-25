@@ -56,7 +56,7 @@ export function PetDetailPage() {
 	if (error || !pet) {
 		return (
 			<div className='page'>
-				<Link className='back-link' to='/mascotas'>
+				<Link className='back-link' to='/cuenta/mascotas'>
 					Volver
 				</Link>
 				<p className='error'>{error || 'No encontrada.'}</p>
@@ -81,7 +81,7 @@ export function PetDetailPage() {
 
 	return (
 		<div className='page'>
-			<Link className='back-link' to='/mascotas'>
+			<Link className='back-link' to='/cuenta/mascotas'>
 				Mis mascotas
 			</Link>
 			<h1>{pet.name}</h1>
