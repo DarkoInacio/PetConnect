@@ -10,7 +10,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from './ui/dropdown-menu';
-import { LogOut, Map, MapPin, Menu, User } from 'lucide-react';
+import { LayoutGrid, LogOut, Map, MapPin, Menu, User } from 'lucide-react';
 import { hasRole } from '../lib/userRoles';
 
 /**
@@ -34,12 +34,12 @@ function navItemsForUser(user) {
 			when: (u) => hasRole(u, 'proveedor') && u?.providerType !== 'veterinaria'
 		},
 		{
-			label: 'Configuración de clínica',
+			label: 'Ficha y agenda de clínica',
 			to: '/proveedor/mi-perfil',
 			when: (u) => hasRole(u, 'proveedor') && u?.providerType === 'veterinaria'
 		},
 		{
-			label: 'Configurar perfil',
+			label: 'Ficha, tarifas y disponibilidad',
 			to: '/proveedor/mi-perfil',
 			when: (u) => hasRole(u, 'proveedor') && u?.providerType !== 'veterinaria'
 		},
@@ -49,9 +49,12 @@ function navItemsForUser(user) {
 			to: '/proveedor/atencion-clinica',
 			when: (u) => hasRole(u, 'proveedor') && u?.providerType === 'veterinaria'
 		},
-		{ label: 'Mis reservas', to: '/mis-reservas', when: (u) => hasRole(u, 'dueno') },
-		{ label: 'Mascotas', to: '/mascotas', when: (u) => hasRole(u, 'dueno') },
-		{ label: 'Citas', to: '/citas', when: (u) => hasRole(u, 'dueno') },
+		{
+			label: 'Mi cuenta',
+			to: '/cuenta/reservas',
+			when: (u) => hasRole(u, 'dueno'),
+			icon: LayoutGrid
+		},
 		{ label: 'Admin proveedores', to: '/admin/proveedores', when: (u) => hasRole(u, 'admin') },
 		{ label: 'Reportes de reseñas', to: '/admin/resenas-reportes', when: (u) => hasRole(u, 'admin') }
 	];
@@ -157,13 +160,15 @@ export function AppLayoutHeader() {
 							) : null}
 							{!loading && user && hasRole(user, 'dueno') ? (
 								<DropdownMenuItem asChild>
-									<Link to="/mi-perfil">Mi perfil</Link>
+									<Link to="/cuenta/perfil">Mi perfil</Link>
 								</DropdownMenuItem>
 							) : null}
 							{!loading && user && hasRole(user, 'proveedor') ? (
 								<DropdownMenuItem asChild>
 									<Link to="/proveedor/mi-perfil">
-										{user.providerType === 'veterinaria' ? 'Configuración de clínica' : 'Configurar perfil'}
+										{user.providerType === 'veterinaria'
+											? 'Ficha y agenda de clínica'
+											: 'Ficha, tarifas y disponibilidad'}
 									</Link>
 								</DropdownMenuItem>
 							) : null}

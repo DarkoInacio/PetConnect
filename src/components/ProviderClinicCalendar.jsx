@@ -8,7 +8,17 @@ const VIEWS = [
 ];
 
 /**
- * @typedef {{ id: string, startAt: string, endAt: string, line: string, client: string, status: string }} CalEvent
+ * @typedef {{
+ *   id: string,
+ *   startAt: string,
+ *   endAt: string,
+ *   line: string,
+ *   client: string,
+ *   status: string,
+ *   kind?: 'booking' | 'slot',
+ *   slotId?: string,
+ *   slotStatus?: string
+ * }} CalEvent
  */
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -36,9 +46,18 @@ function monthLabelES(d) {
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
 /**
- * @param {{ events: CalEvent[] }} props
+ * @param {{ events: CalEvent[], onSlotBlock?: (id: string) => void, onSlotUnblock?: (id: string) => void, onSlotDelete?: (id: string) => void, agendaLoading?: boolean, citasLoading?: boolean, mode?: 'citas' | 'oferta' | 'unified' }} props
+ * `mode`: citas = solo reservas; oferta = solo tramos; unified = leyenda doble (legacy).
  */
-export function ProviderClinicCalendar({ events }) {
+export function ProviderClinicCalendar({
+	events,
+	onSlotBlock,
+	onSlotUnblock,
+	onSlotDelete,
+	agendaLoading = false,
+	citasLoading = false,
+	mode = 'unified'
+}) {
 	const [view, setView] = useState(/** @type {'day'|'week'|'month'} */ ('week'));
 	const [anchor, setAnchor] = useState(() => new Date());
 
@@ -142,10 +161,72 @@ export function ProviderClinicCalendar({ events }) {
 				</div>
 			</div>
 
-			{events.length === 0 ? <p className="muted" style={{ margin: '0.5rem 0' }}>Sin citas en el periodo de la lista. Las confirmadas o pendientes aparecerán aquí con la línea y el cliente.</p> : null}
+			{mode === 'citas' && citasLoading ? (
+				<p className="muted" style={{ margin: '0.5rem 0' }}>Cargando reservas…</p>
+			) : null}
+			{mode === 'oferta' && agendaLoading ? (
+				<p className="muted" style={{ margin: '0.5rem 0' }}>Cargando tramos ofrecidos…</p>
+			) : null}
+			{mode === 'unified' && agendaLoading ? (
+				<p className="muted" style={{ margin: '0.5rem 0' }}>Cargando oferta (tramos) y citas…</p>
+			) : null}
+			{!citasLoading && mode === 'citas' && events.length === 0 ? (
+				<p className="muted" style={{ margin: '0.5rem 0' }}>
+					Sin citas con cliente que mostrar (estados cancelados se ocultan). Las confirmadas o pendientes
+					aparecerán con nombre y línea.
+				</p>
+			) : null}
+			{!agendaLoading && mode === 'oferta' && events.length === 0 ? (
+				<p className="muted" style={{ margin: '0.5rem 0' }}>
+					<strong>Sin tramos ofrecidos</strong> a futuro con el filtro actual. Crea o publica la línea de atención,
+					o ajusta el &quot;rellenar agenda&quot; (pestaña Citas → mantenimiento) si aplica.
+				</p>
+			) : null}
+			{!agendaLoading && mode === 'unified' && events.length === 0 ? (
+				<p className="muted" style={{ margin: '0.5rem 0' }}>
+					Aún no hay nada en el calendario: <strong>sin tramos ofrecidos</strong> a futuro o <strong>sin citas</strong>{' '}
+					(confirmadas / pendientes). Crea una línea de atención y, si aplica, usa el mantenimiento de agenda
+					(rellenar) debajo.
+				</p>
+			) : null}
+			{mode === 'citas' && !citasLoading && events.length > 0 ? (
+				<p className="clinic-calendar__legend clinic-calendar__legend--single">
+					<span className="clinic-calendar__legend__item">
+						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--book" />
+						Reservas (dueño y mascota)
+					</span>
+				</p>
+			) : null}
+			{mode === 'oferta' && !agendaLoading && events.length > 0 ? (
+				<p className="clinic-calendar__legend clinic-calendar__legend--single">
+					<span className="clinic-calendar__legend__item">
+						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--slot" />
+						Tramo ofrecido (puedes Cerrar, Abrir o Quitar)
+					</span>
+				</p>
+			) : null}
+			{mode === 'unified' && !agendaLoading && events.length > 0 ? (
+				<p className="clinic-calendar__legend">
+					<span className="clinic-calendar__legend__item">
+						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--book" /> Citas
+					</span>
+					<span className="clinic-calendar__legend__item">
+						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--slot" /> Oferta
+						(turno aún reservable)
+					</span>
+				</p>
+			) : null}
 
 			{view === 'day' && (
-				<DayList ymd={selectedYmd} byYmd={byYmd} todayYmd={todayYmd} />
+				<DayList
+					ymd={selectedYmd}
+					byYmd={byYmd}
+					todayYmd={todayYmd}
+					calendarMode={mode}
+					onSlotBlock={onSlotBlock}
+					onSlotUnblock={onSlotUnblock}
+					onSlotDelete={onSlotDelete}
+				/>
 			)}
 
 			{view === 'week' && (
@@ -168,7 +249,13 @@ export function ProviderClinicCalendar({ events }) {
 									) : (
 										list.map((e) => (
 											<li key={e.id}>
-												<EventCard e={e} detailed />
+												<EventCard
+													e={e}
+													detailed
+													onSlotBlock={onSlotBlock}
+													onSlotUnblock={onSlotUnblock}
+													onSlotDelete={onSlotDelete}
+												/>
 											</li>
 										))
 									)}
@@ -207,8 +294,19 @@ export function ProviderClinicCalendar({ events }) {
 										<div className="clinic-calendar__mdate">{d.getDate()}</div>
 										<ul className="clinic-calendar__mitems">
 											{list.map((e) => (
-												<li key={e.id} className="clinic-calendar__mchip" title={e.client + ' — ' + e.line}>
-													{formatTimeInChile(e.startAt)} {e.client.split(' ')[0] || e.client}
+												<li
+													key={e.id}
+													className={
+														e.kind === 'slot' ? 'clinic-calendar__mchip clinic-calendar__mchip--slot' : 'clinic-calendar__mchip'
+													}
+													title={(e.client || '') + ' — ' + (e.line || '')}
+												>
+													{formatTimeInChile(e.startAt)}{' '}
+													{e.kind === 'slot'
+														? (e.line || '').length > 12
+															? (e.line || '').slice(0, 10) + '…'
+															: e.line
+														: (e.client || '').split(' ')[0] || e.client}
 												</li>
 											))}
 											{(byYmd[ymd] || []).length > 3 ? (
@@ -229,16 +327,32 @@ export function ProviderClinicCalendar({ events }) {
 }
 
 /**
- * @param {{ ymd: string, byYmd: Record<string, CalEvent[]>, todayYmd: string | null }} props
+ * @param {{ ymd: string, byYmd: Record<string, CalEvent[]>, todayYmd: string | null, calendarMode: 'citas' | 'oferta' | 'unified', onSlotBlock?: (id: string) => void, onSlotUnblock?: (id: string) => void, onSlotDelete?: (id: string) => void }} props
  */
-function DayList({ ymd, byYmd, todayYmd }) {
+function DayList({ ymd, byYmd, todayYmd, calendarMode, onSlotBlock, onSlotUnblock, onSlotDelete }) {
 	const list = byYmd[ymd] || [];
 	if (list.length === 0) {
+		if (calendarMode === 'citas') {
+			return (
+				<p className="muted" style={{ margin: 0 }}>
+					{ymd === todayYmd ? 'Sin reservas este día.' : 'Sin reservas el ' + ymd + '.'}
+				</p>
+			);
+		}
+		if (calendarMode === 'oferta') {
+			return (
+				<p className="muted" style={{ margin: 0 }}>
+					{ymd === todayYmd
+						? 'Sin tramos ofrecidos este día (revisa otra semana o el filtro de línea).'
+						: 'Sin oferta el ' + ymd + '.'}
+				</p>
+			);
+		}
 		return (
 			<p className="muted" style={{ margin: 0 }}>
 				{ymd === todayYmd
-					? 'No hay citas este día.'
-					: 'No hay citas el día ' + ymd + '.'}
+					? 'Nada en este día (ni oferta de tramo ni cita con cliente).'
+					: 'No hay ítems el día ' + ymd + '.'}
 			</p>
 		);
 	}
@@ -246,7 +360,13 @@ function DayList({ ymd, byYmd, todayYmd }) {
 		<ul className="clinic-calendar__fullday" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
 			{list.map((e) => (
 				<li key={e.id} style={{ marginBottom: 10 }}>
-					<EventCard e={e} detailed />
+					<EventCard
+						e={e}
+						detailed
+						onSlotBlock={onSlotBlock}
+						onSlotUnblock={onSlotUnblock}
+						onSlotDelete={onSlotDelete}
+					/>
 				</li>
 			))}
 		</ul>
@@ -254,46 +374,60 @@ function DayList({ ymd, byYmd, todayYmd }) {
 }
 
 /**
- * @param {{ e: CalEvent, detailed?: boolean }} props
+ * @param {{ e: CalEvent, detailed?: boolean, onSlotBlock?: (id: string) => void, onSlotUnblock?: (id: string) => void, onSlotDelete?: (id: string) => void }} props
  */
-function EventCard({ e, detailed }) {
+function EventCard({ e, detailed, onSlotBlock, onSlotUnblock, onSlotDelete }) {
 	if (detailed === false) return null;
+	const isSlot = e.kind === 'slot';
 	return (
-		<div className="clinic-calendar__card">
+		<div className={isSlot ? 'clinic-calendar__card clinic-calendar__card--slot' : 'clinic-calendar__card'}>
 			<div className="clinic-calendar__time">
 				{formatTimeInChile(e.startAt)} – {formatTimeInChile(e.endAt)}
 			</div>
 			<div className="clinic-calendar__line">{e.line}</div>
-			<div className="clinic-calendar__client">{e.client}</div>
+			<div className="clinic-calendar__client">
+				{isSlot ? <em className="clinic-calendar__oferta">{e.client}</em> : e.client}
+			</div>
 			<small className="muted">{e.status}</small>
+			{isSlot && e.slotId && (onSlotBlock || onSlotUnblock || onSlotDelete) ? (
+				<div className="clinic-calendar__slot-actions" role="group" aria-label="Gestionar tramo">
+					{e.slotStatus === 'available' && onSlotBlock ? (
+						<button type="button" className="btn-sm" onClick={() => onSlotBlock(e.slotId)}>
+							Cerrar
+						</button>
+					) : null}
+					{e.slotStatus === 'blocked' && onSlotUnblock ? (
+						<button type="button" className="btn-sm" onClick={() => onSlotUnblock(e.slotId)}>
+							Abrir
+						</button>
+					) : null}
+					{onSlotDelete ? (
+						<button type="button" className="btn-reject" onClick={() => onSlotDelete(e.slotId)}>
+							Quitar
+						</button>
+					) : null}
+				</div>
+			) : null}
 		</div>
 	);
 }
 
 export function mapBookingToCalEvent(row, ownerLabelFn) {
-	const isLeg = row.kind === 'cita_legacy';
-	const own = isLeg ? row.dueno : row.owner;
-	const client = ownerLabelFn(own);
-	const line = isLeg
-		? row.servicio || 'Cita (formulario clásico)'
-		: row.clinicService?.displayName
-			? String(row.clinicService.displayName)
-			: row.bookingSource === 'walker_request'
-				? 'Paseo / cuidado'
-				: 'Línea no indicada';
-	const st = isLeg
-		? row.status === 'pendiente'
-			? 'Pendiente'
-			: row.status === 'confirmada'
-				? 'Confirmada'
-				: String(row.status)
-		: row.status === 'pending_confirmation'
+	const client = ownerLabelFn(row.owner);
+	const line = row.clinicService?.displayName
+		? String(row.clinicService.displayName)
+		: row.bookingSource === 'walker_request'
+			? 'Paseo / cuidado'
+			: 'Línea no indicada';
+	const st =
+		row.status === 'pending_confirmation'
 			? 'Pendiente confirmar'
 			: row.status === 'confirmed'
 				? 'Confirmada'
 				: String(row.status);
 	return {
-		id: `${row.kind}-${row.id}`,
+		id: `appointment-${row.id}`,
+		kind: 'booking',
 		startAt: row.startAt,
 		endAt: row.endAt,
 		line,
@@ -302,13 +436,38 @@ export function mapBookingToCalEvent(row, ownerLabelFn) {
 	};
 }
 
+/**
+ * @param {Record<string, any>} s API agenda slot
+ * @returns {CalEvent}
+ */
+export function mapAgendaSlotToCalEvent(s) {
+	const line =
+		s.clinicServiceId && typeof s.clinicServiceId === 'object'
+			? String(s.clinicServiceId.displayName || 'Línea')
+			: 'Línea';
+	const st =
+		s.status === 'available'
+			? 'Oferta (libre)'
+			: s.status === 'blocked'
+				? 'Cerrado a reservas'
+				: String(s.status || '—');
+	const sub =
+		s.status === 'available' ? 'Público' : s.status === 'blocked' ? 'No publica' : 'Tramo';
+	return {
+		id: `slot-${s._id}`,
+		kind: 'slot',
+		slotId: String(s._id),
+		slotStatus: s.status,
+		startAt: s.startAt,
+		endAt: s.endAt,
+		line,
+		client: sub,
+		status: st
+	};
+}
+
 export function filterBookingsForCalendar(b) {
-	if (b.kind === 'cita_legacy') {
-		return b.status === 'pendiente' || b.status === 'confirmada' || b.status === 'completada';
-	}
-	if (b.kind === 'appointment') {
-		if (b.status === 'cancelled_by_owner' || b.status === 'cancelled_by_provider') return false;
-		return true;
-	}
-	return false;
+	if (b.kind !== 'appointment') return false;
+	if (b.status === 'cancelled_by_owner' || b.status === 'cancelled_by_provider') return false;
+	return true;
 }

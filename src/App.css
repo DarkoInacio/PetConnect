@@ -177,6 +177,81 @@
 .provider-dash-section {
 	margin-top: 0.25rem;
 }
+/* Pestañas: citas vs tramos ofrecidos (clínica) */
+.vet-agenda__tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin: 0.15rem 0 1rem;
+	padding: 0.25rem;
+	background: color-mix(in srgb, var(--app-border, #e2e8f0) 40%, #fff 60%);
+	border-radius: 0.55rem;
+	border: 1px solid var(--app-border, #e2e8f0);
+}
+.vet-agenda__tab {
+	border: 1px solid transparent;
+	background: transparent;
+	border-radius: 0.4rem;
+	padding: 0.5rem 0.9rem;
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: hsl(var(--muted-foreground, 215 16% 38%));
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.vet-agenda__tab:hover {
+	background: #fff;
+	color: #0f172a;
+}
+.vet-agenda__tab[aria-selected="true"] {
+	background: #fff;
+	color: var(--app-primary, #0d9488);
+	border-color: color-mix(in srgb, var(--app-primary) 30%, #e2e8f0);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.vet-oferta-linebar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 0.75rem;
+	margin: 0 0 0.85rem;
+}
+.vet-oferta-linebar__label {
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #475569;
+}
+.vet-oferta-linebar__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	align-items: center;
+}
+.vet-oferta-linebar__chip {
+	font: inherit;
+	font-size: 0.78rem;
+	font-weight: 500;
+	padding: 0.35rem 0.65rem;
+	border-radius: 999px;
+	border: 1px solid #e2e8f0;
+	background: #fff;
+	color: #334155;
+	cursor: pointer;
+	transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.vet-oferta-linebar__chip:hover {
+	border-color: color-mix(in srgb, var(--app-primary) 40%, #e2e8f0);
+}
+.vet-oferta-linebar__chip.is-active {
+	background: color-mix(in srgb, var(--app-primary) 10%, #fff 90%);
+	border-color: color-mix(in srgb, var(--app-primary) 45%, #e2e8f0);
+	color: var(--app-primary, #0d9488);
+	font-weight: 600;
+}
+.vet-oferta-linebar__count {
+	font-size: 0.8rem;
+	color: #64748b;
+}
 /* Mapa: bloque de introducción + filtros; el mapa/lista siguen en .content a ancho de página */
 .page-surface--map,
 .page-surface--explore {
@@ -272,9 +347,46 @@
 	align-self: flex-start;
 }
 
+/* Dueño: área “Tu cuenta” (/cuenta) */
+.owner-area {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0.5rem 1rem 1.5rem;
+}
+@media (min-width: 640px) {
+	.owner-area {
+		padding-left: 1.25rem;
+		padding-right: 1.25rem;
+	}
+}
+.owner-area__head {
+	margin: 0.15rem 0 0.35rem;
+}
+.owner-area__eyebrow {
+	margin: 0 0 0.1rem;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: hsl(215 18% 42%);
+}
+.owner-area--flow-focus .owner-area__head {
+	opacity: 0.6;
+	pointer-events: none;
+}
+.owner-hub-section {
+	width: 100%;
+}
+
 /* Dueño: pestañas tipo píldora (responsive, táctil) */
 .owner-subnav {
 	margin: 0 0 1.25rem;
+}
+.owner-subnav__bar {
+	border: 1px solid hsl(210 20% 88%);
+	border-radius: 0.75rem;
+	background: linear-gradient(180deg, hsl(185 22% 98%) 0%, #fff 100%);
+	padding: 0.3rem 0.4rem 0.4rem;
 }
 .owner-subnav__list {
 	display: flex;
@@ -319,6 +431,190 @@
 	color: #fff;
 	border-color: transparent;
 	filter: brightness(1.03);
+}
+
+/* Ficha proveedor: secciones (veterinaria, paseo, cuidado) */
+.provider-mi-ficha__intro h1 {
+	margin: 0 0 0.2rem;
+	font-size: clamp(1.25rem, 2.4vw, 1.5rem);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: hsl(var(--foreground));
+}
+.provider-mi-ficha__intro {
+	margin-bottom: 1.1rem;
+}
+.provider-mi-ficha__lede {
+	margin: 0.4rem 0 0;
+	max-width: 46ch;
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: hsl(var(--muted-foreground));
+}
+/* Columna de lectura cómoda; toda la pantalla ficha (intro, tabs, form) al mismo ancho */
+.provider-mi-ficha--sectioned {
+	max-width: 42rem;
+}
+.provider-mi-ficha--sectioned .provider-edit-form {
+	padding-bottom: 3.5rem;
+	min-width: 0;
+	width: 100%;
+}
+.provider-mi-ficha--sectioned .provider-mi-ficha__group {
+	min-width: 0;
+	contain: layout;
+}
+/* Tarjeta: paso actual + barra con scroll; sticky para orientación mientras bajas el form */
+.provider-mi-ficha__nav-card {
+	margin: 0 0 1.15rem;
+	padding: 0.85rem 0.9rem 0.7rem;
+	border-radius: 1rem;
+	background: hsl(var(--card));
+	border: 1px solid color-mix(in srgb, hsl(var(--border)) 90%, var(--app-primary) 3%);
+	box-shadow: var(--app-shadow);
+	position: sticky;
+	top: 3.15rem;
+	z-index: 4;
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+}
+@media (min-width: 768px) {
+	.provider-mi-ficha__nav-card {
+		top: 3.4rem;
+	}
+}
+.provider-mi-ficha__nav-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem 1rem;
+	margin-bottom: 0.65rem;
+}
+.provider-mi-ficha__nav-kicker {
+	margin: 0 0 0.1rem;
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: hsl(var(--muted-foreground));
+}
+.provider-mi-ficha__nav-title {
+	margin: 0;
+	font-size: 1.02rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: hsl(var(--foreground));
+	line-height: 1.25;
+}
+.provider-mi-ficha__nav-step {
+	margin: 0;
+	flex-shrink: 0;
+	font-size: 0.8rem;
+	font-weight: 700;
+	padding: 0.35rem 0.6rem;
+	border-radius: 999px;
+	color: hsl(var(--muted-foreground));
+	background: hsl(var(--secondary));
+	border: 1px solid color-mix(in srgb, hsl(var(--border)) 88%, #fff 12%);
+	white-space: nowrap;
+}
+/* Píldora tipo segmented control: una pista, pestaña activa resaltada */
+.provider-mi-ficha__tab-scroll {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 0.3rem;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	scroll-snap-type: x proximity;
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--app-primary) 35%, transparent) transparent;
+	margin: 0;
+	padding: 0.3rem 0.35rem;
+	background: color-mix(in srgb, hsl(var(--secondary)) 92%, #fff);
+	border: 1px solid color-mix(in srgb, hsl(var(--border)) 70%, #fff 30%);
+	border-radius: 0.75rem;
+}
+.provider-mi-ficha__tab {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	scroll-snap-align: start;
+	max-width: min(100%, 20rem);
+	min-height: 2.35rem;
+	padding: 0.35rem 0.7rem;
+	font: inherit;
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: hsl(var(--muted-foreground));
+	background: transparent;
+	border: none;
+	border-radius: 0.55rem;
+	box-shadow: none;
+	cursor: pointer;
+	transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+	white-space: normal;
+	text-align: center;
+	line-height: 1.25;
+	hyphens: auto;
+	-webkit-tap-highlight-color: transparent;
+}
+@media (min-width: 800px) {
+	.provider-mi-ficha__tab {
+		white-space: nowrap;
+		font-size: 0.8rem;
+	}
+}
+.provider-mi-ficha__tab:hover {
+	color: var(--app-primary-hover);
+	background: color-mix(in srgb, #fff 55%, transparent);
+}
+.provider-mi-ficha__tab.is-active {
+	background: #fff;
+	color: var(--app-primary);
+	border: 1px solid color-mix(in srgb, var(--app-border) 55%, #fff 45%);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.provider-mi-ficha__group--hidden {
+	display: none !important;
+}
+/* Barra guardar: más aire, borde claro, sensación de barra fija de producto */
+.provider-mi-ficha__form-actions {
+	margin-top: 0.75rem;
+	margin-left: 0.25rem;
+	margin-right: 0.25rem;
+	padding: 0.7rem 0.65rem 0.55rem;
+	border: 1px solid color-mix(in srgb, var(--app-border) 80%, #fff 20%);
+	border-bottom: 0;
+	border-radius: 0.85rem 0.85rem 0 0;
+	background: color-mix(in srgb, #fff 92%, hsl(185 25% 96%));
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	position: sticky;
+	bottom: 0;
+	z-index: 3;
+	box-shadow: 0 -8px 32px -12px rgba(15, 23, 42, 0.12);
+}
+@media (min-width: 500px) {
+	.provider-mi-ficha__form-actions {
+		margin-left: 0;
+		margin-right: 0;
+	}
+}
+.provider-mi-ficha__form-actions--inline {
+	margin-top: 0.5rem;
+	padding-top: 0.5rem;
+	margin-left: 0;
+	margin-right: 0;
+	border: 0;
+	border-top: 1px solid var(--app-border);
+	border-radius: 0;
+	position: static;
+	background: transparent;
+	box-shadow: none;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
 }
 
 /* Reservas: vacío y tabla vs tarjetas (móvil) */
@@ -617,6 +913,35 @@ button.back-link {
 	box-shadow: var(--app-shadow);
 }
 
+.profile-tabs {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin: 0 0 1.25rem;
+	border-bottom: 1px solid var(--app-border, #e4ebf5);
+}
+
+.profile-tab {
+	appearance: none;
+	font: inherit;
+	padding: 0.6rem 1rem;
+	margin-bottom: -1px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 10px 10px 0 0;
+	color: #64748b;
+	cursor: pointer;
+}
+
+.profile-tab--active,
+.profile-tab[aria-selected="true"] {
+	color: #1e293b;
+	font-weight: 600;
+	border-color: var(--app-border, #e4ebf5);
+	border-bottom-color: var(--app-surface, #fff);
+	background: var(--app-surface, #fff);
+}
+
 .profile-hero {
 	display: grid;
 	grid-template-columns: 140px 1fr;
@@ -790,6 +1115,147 @@ button.back-link {
 	margin: 0;
 	color: #166534;
 	font-weight: 600;
+}
+
+/* Proveedor: /proveedor/mis-resenas — tarjetas, no lista plana */
+.provider-reviews-page {
+	max-width: 48rem;
+}
+.provider-reviews-page .page-surface {
+	margin-top: 0.15rem;
+}
+.provider-reviews-page__intro p {
+	margin: 0;
+	color: hsl(var(--muted-foreground));
+	max-width: 48ch;
+}
+.provider-reviews-page__accent {
+	color: var(--app-primary);
+	font-weight: 700;
+}
+.provider-reviews-page__msg {
+	margin: 0 0 0.5rem;
+	padding: 0.5rem 0.65rem;
+	border-radius: 0.5rem;
+	background: color-mix(in srgb, hsl(142 60% 45%) 12%, #fff);
+}
+.review-list--provider-cards {
+	margin: 0.15rem 0 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+.review-item.review-item--card {
+	margin: 0;
+	min-width: 0;
+	padding: 1.05rem 1.1rem 1.1rem;
+	border-radius: 0.95rem;
+	background: color-mix(in srgb, hsl(185 25% 99%) 40%, #fff 60%);
+	border: 1px solid color-mix(in srgb, hsl(var(--border)) 80%, #fff 20%);
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+	border-bottom: 1px solid color-mix(in srgb, hsl(var(--border)) 80%, #fff 20%);
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+}
+.review-list--provider-cards .review-item--card:last-child {
+	border-bottom: 1px solid color-mix(in srgb, hsl(var(--border)) 80%, #fff 20%);
+	padding-bottom: 1.1rem;
+}
+.review-item-card__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 0.5rem 0.75rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 1px solid color-mix(in srgb, hsl(210 18% 90%) 70%, #fff 30%);
+}
+.review-item-card__stars {
+	flex-shrink: 0;
+}
+.review-item-card__who {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	min-width: 0;
+	flex: 1 1 8rem;
+}
+.review-item-card__who .review-date {
+	margin: 0;
+}
+.review-item-card__quote {
+	margin: 0;
+	padding: 0.6rem 0.75rem;
+	border-radius: 0.65rem;
+	background: #fff;
+	border: 1px solid color-mix(in srgb, hsl(210 18% 90%) 55%, #fff 45%);
+}
+.review-item-card__quote .review-comment {
+	margin: 0;
+}
+.provider-reviews-page__resp-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.35rem 0.75rem;
+	margin-bottom: 0.4rem;
+}
+.provider-reviews-page__reply-date {
+	margin: 0;
+	font-size: 0.78rem;
+	font-weight: 500;
+	color: hsl(var(--muted-foreground));
+}
+.review-item-card__form {
+	display: flex;
+	flex-direction: column;
+	gap: 0.65rem;
+	margin-top: 0.1rem;
+	padding-top: 0.75rem;
+	border-top: 1px dashed color-mix(in srgb, hsl(210 18% 86%) 75%, #fff 25%);
+}
+.review-item-card__form-label {
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: hsl(215 20% 32%);
+}
+.review-reply-textarea {
+	width: 100%;
+	max-width: 100%;
+	min-height: 5.5rem;
+	resize: vertical;
+	box-sizing: border-box;
+}
+.review-item-card__submit {
+	align-self: stretch;
+	width: 100%;
+	min-height: 2.6rem;
+	border-radius: 0.65rem;
+}
+@media (min-width: 480px) {
+	.review-item-card__submit {
+		align-self: flex-start;
+		width: auto;
+		min-width: 11rem;
+	}
+}
+.provider-reviews-page__empty {
+	margin: 0.5rem 0 0;
+	padding: 1.5rem 1.1rem;
+	text-align: center;
+	border-radius: 0.85rem;
+	border: 1px dashed color-mix(in srgb, hsl(210 20% 80%) 65%, #fff 35%);
+	background: linear-gradient(180deg, hsl(185 28% 99%) 0%, #fff 100%);
+}
+.provider-reviews-page__empty-title {
+	margin: 0 0 0.4rem;
+	font-size: 1.05rem;
+	font-weight: 700;
+	color: hsl(var(--foreground));
 }
 
 .report-modal-backdrop {
@@ -1024,10 +1490,16 @@ button.back-link {
 	margin-top: 0;
 }
 
-.provider-edit-form {
+/* Flujos con fieldsets/labels: mi perfil, panel proveedor, agendar (misma lógica visual) */
+:is(.app-form, .provider-edit-form) {
 	display: flex;
 	flex-direction: column;
-	gap: 18px;
+	gap: 1.1rem;
+	min-width: 0;
+	max-width: 100%;
+}
+
+.provider-edit-form {
 	max-width: 720px;
 }
 
@@ -1042,6 +1514,64 @@ button.back-link {
 .edit-fieldset legend {
 	padding: 0 8px;
 	font-weight: 700;
+}
+
+/* Etiquetas y cajas: ancho seguro, jerarquía de texto (proveedor, reservar, etc.) */
+:is(.app-form, .provider-edit-form) .edit-field,
+:is(.app-form, .provider-edit-form) .check-row,
+:is(.app-form, .provider-edit-form) .edit-row-2,
+:is(.app-form, .provider-edit-form) .weekly-row,
+:is(.app-form, .provider-edit-form) .tariffs-block,
+:is(.app-form, .provider-edit-form) .schedule-24h-block,
+:is(.app-form, .provider-edit-form) .agenda-generate-form {
+	min-width: 0;
+}
+:is(.app-form, .provider-edit-form) .edit-field > span {
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: hsl(215 20% 32%);
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+:is(.app-form, .provider-edit-form) .edit-fieldset {
+	padding: 1.05rem 1rem 0.95rem;
+	background: #fff;
+	box-shadow: 0 1px 0 color-mix(in srgb, hsl(210 18% 90%) 65%, #fff 35%),
+		0 1px 2px rgba(15, 23, 42, 0.04);
+}
+:is(.app-form, .provider-edit-form) .edit-fieldset legend {
+	font-size: 0.95rem;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: hsl(var(--foreground));
+}
+:is(.app-form, .provider-edit-form) section.edit-fieldset > h2 {
+	margin: 0 0 0.65rem;
+	padding: 0 0 0.5rem;
+	font-size: 1.04rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.3;
+	color: hsl(var(--foreground));
+	border-bottom: 1px solid color-mix(in srgb, hsl(var(--border)) 55%, #fff 45%);
+}
+:is(.app-form, .provider-edit-form) .check-row {
+	align-items: flex-start;
+}
+:is(.app-form, .provider-edit-form) .check-row input[type='checkbox'] {
+	margin-top: 0.22em;
+	flex-shrink: 0;
+}
+
+/* Superficies que también usan .app-form (reservas, explorar) */
+.page-surface.app-form {
+	min-width: 0;
+}
+
+/* Panel: bloques apilados con aire, sin tocar ancho de tabla */
+.provider-dashboard__flow {
+	width: 100%;
 }
 
 .edit-field {
@@ -1071,8 +1601,15 @@ button.back-link {
 	gap: 12px;
 }
 
+/* Apertura + cierre: alinear al inicio. align-items: end hacía subir un bloque
+   y bajar el otro cuando un label era más alto (texto de 2 líneas). */
 .reception-time-row {
-	align-items: end;
+	align-items: start;
+}
+.reception-time-row .edit-field > span {
+	display: block;
+	min-height: 3rem;
+	line-height: 1.35;
 }
 
 .check-row {
@@ -1136,6 +1673,13 @@ button.back-link {
 	color: #fff;
 	font-weight: 700;
 	cursor: pointer;
+}
+.provider-mi-ficha__form-actions .save-profile-btn {
+	align-self: stretch;
+	width: 100%;
+	min-height: 2.75rem;
+	border-radius: 0.65rem;
+	letter-spacing: 0.02em;
 }
 
 .save-profile-btn:disabled {
@@ -1970,6 +2514,83 @@ button.back-link {
 	gap: 8px;
 }
 
+/* Panel clínica: el listado de tramos ofrecidos va plegado (el calendario es otro dato) */
+.slot-admin-why__hint {
+	font-size: 0.88em;
+}
+.slot-admin-list-details {
+	margin-top: 0.5rem;
+	border: 1px solid color-mix(in srgb, var(--app-border) 80%, #fff 20%);
+	border-radius: 0.75rem;
+	background: color-mix(in srgb, hsl(185 22% 99%) 55%, #fff 45%);
+}
+.slot-admin-list-details__summary {
+	list-style: none;
+	cursor: pointer;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-start;
+	gap: 0.5rem 0.75rem;
+	padding: 0.6rem 0.85rem;
+	font-weight: 600;
+	color: hsl(var(--foreground));
+}
+.slot-admin-list-details__summary::-webkit-details-marker,
+.slot-admin-list-details__summary::marker {
+	display: none;
+}
+.slot-admin-list-details[open] {
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+.slot-admin-list-details[open] .slot-admin-list-details__summary {
+	border-bottom: 1px solid color-mix(in srgb, var(--app-border) 60%, #fff 40%);
+}
+.slot-admin-list-details__body {
+	padding: 0.65rem 0.85rem 0.8rem;
+}
+.slot-admin-day-stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+}
+.slot-admin-day {
+	margin: 0;
+	border: 1px solid color-mix(in srgb, var(--app-border) 72%, #fff 28%);
+	border-radius: 0.6rem;
+	background: #fff;
+}
+.slot-admin-day[open] {
+	border-color: color-mix(in srgb, var(--app-primary) 20%, var(--app-border) 80%);
+}
+.slot-admin-day__summary {
+	list-style: none;
+	cursor: pointer;
+	padding: 0.45rem 0.7rem 0.5rem;
+	font-weight: 600;
+	font-size: 0.9rem;
+	color: hsl(215 22% 30%);
+}
+.slot-admin-day__summary::-webkit-details-marker,
+.slot-admin-day__summary::marker {
+	display: none;
+}
+.slot-admin-day[open] .slot-admin-day__summary {
+	border-bottom: 1px solid #eef2f7;
+}
+.slot-admin-day__date {
+	display: block;
+}
+.slot-admin-list--in-day {
+	margin: 0;
+	margin-top: 0;
+	padding: 0.25rem 0.4rem 0.45rem 0.5rem;
+}
+.slot-admin-list--in-day li:last-child {
+	border-bottom: 0;
+	padding-bottom: 4px;
+}
+
 .slot-admin-list {
 	list-style: none;
 	margin: 12px 0 0;
@@ -2338,14 +2959,16 @@ button.back-link {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 12px;
-	align-items: flex-end;
+	align-items: flex-start;
 	margin: 16px 0;
 }
 .explore-filters label {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: 6px;
 	font-size: 0.9rem;
+	min-width: 0;
+	flex: 1 1 9rem;
 }
 .explore-filters--in-surface {
 	margin: 0.25rem 0 1.1rem;
@@ -2375,6 +2998,8 @@ button.back-link {
 	display: flex;
 	align-items: flex-end;
 	min-height: 2.65rem;
+	margin-top: 0.1rem;
+	align-self: flex-end;
 }
 .explore-search-btn {
 	white-space: nowrap;
@@ -2459,50 +3084,6 @@ button.back-link {
 .encounters-list {
 	margin: 8px 0 0;
 	padding-left: 18px;
-}
-.citas-legacy-tabs {
-	display: inline-flex;
-	gap: 0.2rem;
-	padding: 0.2rem;
-	margin: 0 0 1rem;
-	background: hsl(210 22% 92%);
-	border-radius: 0.8rem;
-	border: 1px solid hsl(210 18% 86%);
-}
-.citas-legacy-tabs[role='tablist'] {
-	flex-wrap: wrap;
-}
-.citas-legacy-tabs button[role='tab'] {
-	appearance: none;
-	border: 0;
-	margin: 0;
-	min-height: 2.5rem;
-	padding: 0.4rem 1.1rem;
-	font: inherit;
-	font-size: 0.9rem;
-	font-weight: 600;
-	color: hsl(215 20% 34%);
-	background: transparent;
-	border-radius: 0.6rem;
-	cursor: pointer;
-	transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-.citas-legacy-tabs button[role='tab'][aria-selected='true'] {
-	background: #fff;
-	color: var(--app-primary-hover);
-	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-}
-.citas-legacy-list {
-	list-style: none;
-	padding: 0;
-}
-.citas-legacy-list li {
-	border: 1px solid var(--app-border);
-	background: #fff;
-	border-radius: 0.75rem;
-	padding: 0.85rem 1rem;
-	margin-bottom: 0.65rem;
-	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 .slot-admin-list li {
 	display: flex;
@@ -2638,6 +3219,57 @@ button.back-link {
 	background: #fff;
 	border: 1px solid var(--app-border, #e2e8f0);
 	border-radius: 0.35rem;
+}
+.clinic-calendar__legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem 1.25rem;
+	margin: 0.45rem 0 0.15rem;
+	font-size: 0.78rem;
+	color: hsl(var(--muted-foreground, 215 16% 38%));
+}
+.clinic-calendar__legend--single {
+	gap: 0.5rem;
+}
+.clinic-calendar__legend__item {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+.clinic-calendar__legend__swatch {
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: 0.2rem;
+	border: 1px solid #e2e8f0;
+}
+.clinic-calendar__legend__swatch--book {
+	background: #fff;
+	border-color: #cbd5e1;
+}
+.clinic-calendar__legend__swatch--slot {
+	background: color-mix(in srgb, var(--app-primary, #0d9488) 12%, #f8fafc);
+	border-color: color-mix(in srgb, var(--app-primary, #0d9488) 35%, #e2e8f0);
+}
+.clinic-calendar__card--slot {
+	background: color-mix(in srgb, var(--app-primary, #0d9488) 7%, #fff 93%);
+	border-style: dashed;
+	border-color: color-mix(in srgb, var(--app-primary, #0d9488) 32%, #cbd5e1);
+}
+.clinic-calendar__oferta {
+	font-style: normal;
+	color: #64748b;
+	font-size: 0.78rem;
+}
+.clinic-calendar__slot-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin-top: 0.4rem;
+}
+.clinic-calendar__mchip--slot {
+	background: color-mix(in srgb, var(--app-primary, #0d9488) 10%, #f8fafc) !important;
+	border: 1px dashed color-mix(in srgb, var(--app-primary, #0d9488) 30%, #e2e8f0) !important;
+	font-size: 0.68rem;
 }
 .clinic-calendar__time {
 	font-size: 0.78rem;

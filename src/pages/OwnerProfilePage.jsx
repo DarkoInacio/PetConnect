@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
 import { hasRole } from '../lib/userRoles';
 import { resolveBackendAssetUrl } from '../services/api';
@@ -37,7 +36,7 @@ export function OwnerProfilePage() {
 	}
 
 	if (!user) {
-		return <Navigate to='/login' replace state={{ from: '/mi-perfil' }} />;
+		return <Navigate to='/login' replace state={{ from: '/cuenta/perfil' }} />;
 	}
 
 	if (!hasRole(user, 'dueno')) {
@@ -80,20 +79,16 @@ export function OwnerProfilePage() {
 	const img = user.profileImage ? resolveBackendAssetUrl(user.profileImage) : null;
 
 	return (
-		<div className="page provider-edit-page">
-			<Link className="back-link" to="/">
-				← Volver al mapa
-			</Link>
+		<div className="owner-hub-section provider-edit-page">
 			<div className="page-surface page-surface--wide">
 			<header className="page-hero" style={{ marginBottom: '0.5rem' }}>
 				<h1>Mi perfil</h1>
 				<p>Datos de contacto y foto. Úsalo en reservas y comprobantes.</p>
 			</header>
-			<OwnerSubnav />
 			{hasRole(user, 'dueno') && !hasRole(user, 'proveedor') ? (
 				<p className="hint muted" style={{ margin: '0 0 0.75rem' }}>
 					<strong>¿Quieres ofrecer servicios con el mismo correo?</strong>{' '}
-					<Link to="/mi-perfil/ofrecer-servicios">Solicitar ser proveedor</Link> (paseo, cuidado o
+					<Link to="/cuenta/ofrecer-servicios">Solicitar ser proveedor</Link> (paseo, cuidado o
 					veterinaria; requiere aprobación).
 				</p>
 			) : null}

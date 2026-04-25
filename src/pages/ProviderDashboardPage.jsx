@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import {
 	confirmAppointmentAsProvider,
 	cancelAppointmentAsProvider,
-	completeWalkerAppointmentAsProvider
+	completeWalkerAppointmentAsProvider,
+	completeVetClinicAppointmentAsProvider
 } from '../services/appointments';
 import {
 	blockAgendaSlot,
@@ -16,12 +17,17 @@ import {
 } from '../services/agenda';
 import { listClinicServices, createClinicService } from '../services/clinicServices';
 import { fetchProviderBookings } from '../services/bookings';
-import { cancelCitaAsProvider, confirmCitaAsProvider, recordCitaDiagnostico } from '../services/citas';
-import { formatChileDateTimeRange, formatInChile, formatTimeInChile } from '../constants/chileTime';
+import {
+	createReviewForAppointment,
+	fetchReviewEligibility,
+	updateMyReview
+} from '../services/reviews';
+import { formatChileDateTimeRange } from '../constants/chileTime';
 import { hasRole } from '../lib/userRoles';
 import {
 	ProviderClinicCalendar,
 	mapBookingToCalEvent,
+	mapAgendaSlotToCalEvent,
 	filterBookingsForCalendar
 } from '../components/ProviderClinicCalendar';
 
@@ -34,16 +40,8 @@ const APPOINTMENT_STATUS_LABELS = {
 	no_show: 'No asistió'
 };
 
-const CITA_ESTADO_LABELS = {
-	pendiente: 'Pendiente',
-	confirmada: 'Confirmada',
-	completada: 'Completada',
-	cancelada: 'Cancelada'
-};
-
 const BOOKING_SOURCE_LABELS = {
 	availability_slot: 'Agenda',
-	legacy_cita: 'Cita clásica',
 	walker_request: 'Solicitud paseo/cuidado'
 };
 
@@ -73,6 +71,21 @@ function buildSlotsListParams(agFrom, agTo) {
 	return p;
 }
 
+/**
+ * @param {Record<string, any>} s agenda slot
+ * @returns {string} id de línea de atención (clinic service)
+ */
+function getSlotClinicServiceId(s) {
+	const c = s && s.clinicServiceId;
+	if (c == null) return '';
+	if (typeof c === 'string') return c;
+	if (typeof c === 'object') {
+		if (c._id != null) return String(c._id);
+		if (c.id != null) return String(c.id);
+	}
+	return '';
+}
+
 export function ProviderDashboardPage() {
 	const { user, loading: authLoading } = useAuth();
 	const [bookings, setBookings] = useState([]);
@@ -80,29 +93,55 @@ export function ProviderDashboardPage() {
 	const [loadingBookings, setLoadingBookings] = useState(true);
 	const [loadingSlots, setLoadingSlots] = useState(true);
 	const [error, setError] = useState('');
-	/** Filtro por defecto: hoy y dos semanas; vaciar ambas fechas = ver toda la agenda futura. */
-	const [agendaFrom, setAgendaFrom] = useState(() => toYmdLocal(new Date()));
-	const [agendaTo, setAgendaTo] = useState(() => {
+	/** Rango solo para "Permitir otra vez" (vaciar recuerdo de tramos eliminados a mano) */
+	const [omitsFrom, setOmitsFrom] = useState(() => toYmdLocal(new Date()));
+	const [omitsTo, setOmitsTo] = useState(() => {
 		const d = new Date();
-		d.setDate(d.getDate() + 14);
+		d.setDate(d.getDate() + 56);
 		return toYmdLocal(d);
 	});
 	const [agendaMsg, setAgendaMsg] = useState('');
 	const [agendaError, setAgendaError] = useState('');
 	const [bookingActionMsg, setBookingActionMsg] = useState('');
 	const [bookingActionErr, setBookingActionErr] = useState('');
+	const [clientReviewRow, setClientReviewRow] = useState(null);
+	const [provElig, setProvElig] = useState(null);
+	const [provEligLoading, setProvEligLoading] = useState(false);
+	const [provEligErr, setProvEligErr] = useState('');
+	const [provForm, setProvForm] = useState({ rating: 5, comment: '' });
+	const [provSubmit, setProvSubmit] = useState(false);
+	const [provMsg, setProvMsg] = useState('');
 	const [clinicLines, setClinicLines] = useState([]);
 	const [newLineName, setNewLineName] = useState('');
 	const [newLineMins, setNewLineMins] = useState(30);
 	const [newLinePrice, setNewLinePrice] = useState('');
 	const [clinicLineMsg, setClinicLineMsg] = useState('');
 	const didAutoAgenda = useRef(false);
+	/** Pestañas de agenda: reservas vs tramos a la venta (solo clínica). */
+	const [vetAgendaTab, setVetAgendaTab] = useState(/** @type {'citas' | 'oferta'} */ ('citas'));
+	/** Filtro de línea en pestaña oferta: '' = todas. */
+	const [ofertaLineFilter, setOfertaLineFilter] = useState('');
 
 	const calendarEvents = useMemo(() => {
 		return (Array.isArray(bookings) ? bookings : [])
 			.filter(filterBookingsForCalendar)
 			.map((row) => mapBookingToCalEvent(row, ownerLabel));
 	}, [bookings]);
+
+	const filteredOfertaSlots = useMemo(() => {
+		if (user?.providerType !== 'veterinaria') return [];
+		const list = Array.isArray(slots) ? slots : [];
+		if (!ofertaLineFilter) return list;
+		const want = String(ofertaLineFilter);
+		return list.filter((s) => getSlotClinicServiceId(s) === want);
+	}, [slots, ofertaLineFilter, user?.providerType]);
+
+	/** Tramos ofrecidos para el calendario (misma franja que citas, sin mezclar). */
+	const ofertaCalEvents = useMemo(() => {
+		return filteredOfertaSlots
+			.map((s) => mapAgendaSlotToCalEvent(s))
+			.sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
+	}, [filteredOfertaSlots]);
 
 	/** Añade tramos en el rango; por defecto desde hoy unas 8 semanas. */
 	const fillAgendaRange = useCallback(
@@ -152,7 +191,7 @@ export function ProviderDashboardPage() {
 		(async () => {
 			try {
 				setLoadingSlots(true);
-				const s = await listMyAgendaSlots(c.signal, buildSlotsListParams(agendaFrom, agendaTo));
+				const s = await listMyAgendaSlots(c.signal, buildSlotsListParams('', ''));
 				setSlots(Array.isArray(s.slots) ? s.slots : []);
 			} catch {
 				setSlots([]);
@@ -161,7 +200,7 @@ export function ProviderDashboardPage() {
 			}
 		})();
 		return () => c.abort();
-	}, [authLoading, user, agendaFrom, agendaTo]);
+	}, [authLoading, user]);
 
 	useEffect(() => {
 		const isProv = hasRole(user, 'proveedor');
@@ -179,6 +218,42 @@ export function ProviderDashboardPage() {
 		return () => c.abort();
 	}, [authLoading, user]);
 
+	useEffect(() => {
+		if (!clientReviewRow || clientReviewRow.kind !== 'appointment') {
+			setProvElig(null);
+			return;
+		}
+		const id = String(clientReviewRow.id ?? clientReviewRow._id ?? '');
+		if (!id) {
+			setProvElig(null);
+			return;
+		}
+		const c = new AbortController();
+		(async () => {
+			setProvEligLoading(true);
+			setProvEligErr('');
+			try {
+				const e = await fetchReviewEligibility(id, c.signal);
+				setProvElig(e);
+				if (e?.review) {
+					setProvForm({
+						rating: e.review.rating,
+						comment: e.review.comment || e.review.observation || ''
+					});
+				} else {
+					setProvForm({ rating: 5, comment: '' });
+				}
+			} catch (err) {
+				if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+				setProvEligErr(err.response?.data?.message || 'No se pudo cargar el estado de la reseña.');
+				setProvElig(null);
+			} finally {
+				setProvEligLoading(false);
+			}
+		})();
+		return () => c.abort();
+	}, [clientReviewRow]);
+
 	/** Rellena la bandeja de tramos (sin botón: una vez al cargar; también al añadir línea). */
 	useEffect(() => {
 		if (authLoading || !user || user?.providerType !== 'veterinaria' || didAutoAgenda.current) return;
@@ -192,7 +267,7 @@ export function ProviderDashboardPage() {
 			}
 			if (!alive) return;
 			try {
-				const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+				const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 				setSlots(Array.isArray(s.slots) ? s.slots : []);
 			} catch {
 				if (alive) setSlots([]);
@@ -237,10 +312,10 @@ export function ProviderDashboardPage() {
 			let line = res.message || 'Listo. Se añadieron o completaron tramos.';
 			const n = res.summary && typeof res.summary.respectedManualDeletes === 'number' ? res.summary.respectedManualDeletes : 0;
 			if (n > 0) {
-				line += ` (${n} tramo(s) respetan borrados a mano; mira abajo en avanzada.)`;
+				line += ` (${n} tramo(s) respetan borrados a mano; ver bloque de mantenimiento).`;
 			}
 			setAgendaMsg(line);
-			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			const raw = err.response?.data?.message || err.message || 'No se pudo rellenar la agenda.';
@@ -274,7 +349,7 @@ export function ProviderDashboardPage() {
 			if (isVet) {
 				try {
 					await fillAgendaRange(8);
-					const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+					const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 					setSlots(Array.isArray(s.slots) ? s.slots : []);
 				} catch {
 					/* sin bloquear */
@@ -296,8 +371,8 @@ export function ProviderDashboardPage() {
 		e.preventDefault();
 		setAgendaMsg('');
 		setAgendaError('');
-		const from = agendaFrom.trim() || toYmdLocal(new Date());
-		const to = agendaTo.trim() || from;
+		const from = omitsFrom.trim() || toYmdLocal(new Date());
+		const to = omitsTo.trim() || from;
 		try {
 			const res = await clearOmittedAgendaSlots({ from, to });
 			const n = res.deletedCount != null ? res.deletedCount : 0;
@@ -314,7 +389,7 @@ export function ProviderDashboardPage() {
 		try {
 			setAgendaError('');
 			await deleteAgendaSlot(id);
-			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaError(err.response?.data?.message || 'No se pudo eliminar.');
@@ -325,7 +400,7 @@ export function ProviderDashboardPage() {
 		try {
 			setAgendaError('');
 			await blockAgendaSlot(id);
-			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaError(err.response?.data?.message || 'No se pudo bloquear.');
@@ -336,23 +411,10 @@ export function ProviderDashboardPage() {
 		try {
 			setAgendaError('');
 			await unblockAgendaSlot(id);
-			const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+			const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 			setSlots(Array.isArray(s.slots) ? s.slots : []);
 		} catch (err) {
 			setAgendaError(err.response?.data?.message || 'No se pudo desbloquear.');
-		}
-	}
-
-	async function onDiagnosticoCita(row) {
-		const text = window.prompt('Registrar diagnóstico y completar cita (obligatorio):');
-		if (!text || !text.trim()) return;
-		setBookingActionErr('');
-		try {
-			await recordCitaDiagnostico(String(row.id), text.trim());
-			setBookingActionMsg('Diagnóstico guardado.');
-			await reloadBookings();
-		} catch (err) {
-			setBookingActionErr(err.response?.data?.message || 'No se pudo guardar.');
 		}
 	}
 
@@ -363,16 +425,12 @@ export function ProviderDashboardPage() {
 		const id = rawId != null ? String(rawId) : '';
 		if (!id) return;
 		try {
-			if (row.kind === 'cita_legacy') {
-				await confirmCitaAsProvider(id);
-			} else {
-				await confirmAppointmentAsProvider(id);
-			}
+			await confirmAppointmentAsProvider(id);
 			setBookingActionMsg('Actualizado correctamente.');
 			await reloadBookings();
 			/* Al confirmar, refrescar bloques: el hueco no vuelve a ofrecerse (y la lista queda alineada). */
 			if (user?.providerType === 'veterinaria') {
-				const s = await listMyAgendaSlots(undefined, buildSlotsListParams(agendaFrom, agendaTo));
+				const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 				setSlots(Array.isArray(s.slots) ? s.slots : []);
 			}
 		} catch (err) {
@@ -389,52 +447,79 @@ export function ProviderDashboardPage() {
 		const id = rawId != null ? String(rawId) : '';
 		if (!id) return;
 		try {
-			if (row.kind === 'cita_legacy') {
-				await cancelCitaAsProvider(id, reason.trim());
-			} else {
-				await cancelAppointmentAsProvider(id, reason.trim());
-			}
+			await cancelAppointmentAsProvider(id, reason.trim());
 			setBookingActionMsg('Cancelación registrada.');
 			await reloadBookings();
+			if (user?.providerType === 'veterinaria') {
+				try {
+					const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
+					setSlots(Array.isArray(s.slots) ? s.slots : []);
+				} catch {
+					/* no bloquear */
+				}
+			}
 		} catch (err) {
 			setBookingActionErr(err.response?.data?.message || 'No se pudo cancelar.');
 		}
 	}
 
-	async function onCompleteWalker(row) {
-		if (!window.confirm('¿Marcar este paseo o cuidado como completado?')) return;
+	function completeBookingConfirmText(row) {
+		if (row?.bookingSource === 'availability_slot') {
+			return '¿Marcar la atención clínica como completada?';
+		}
+		return '¿Marcar este paseo o cuidado como completado?';
+	}
+
+	function completeBookingSuccessText(row) {
+		return row?.bookingSource === 'availability_slot'
+			? 'Atención marcada como completada.'
+			: 'Servicio marcado como completado.';
+	}
+
+	async function onCompleteBooking(row) {
+		if (!window.confirm(completeBookingConfirmText(row))) return;
 		setBookingActionMsg('');
 		setBookingActionErr('');
 		const rawId = row.id;
 		const id = rawId != null ? String(rawId) : '';
 		if (!id) return;
 		try {
-			await completeWalkerAppointmentAsProvider(id);
-			setBookingActionMsg('Servicio marcado como completado.');
+			if (row.bookingSource === 'availability_slot') {
+				await completeVetClinicAppointmentAsProvider(id);
+			} else {
+				await completeWalkerAppointmentAsProvider(id);
+			}
+			setBookingActionMsg(completeBookingSuccessText(row));
 			await reloadBookings();
+			if (user?.providerType === 'veterinaria') {
+				try {
+					const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
+					setSlots(Array.isArray(s.slots) ? s.slots : []);
+				} catch {
+					/* no bloquear */
+				}
+			}
 		} catch (err) {
 			setBookingActionErr(err.response?.data?.message || 'No se pudo completar.');
 		}
 	}
 
 	function canConfirm(row) {
-		if (row.kind === 'cita_legacy') return row.status === 'pendiente';
-		return row.status === 'pending_confirmation';
+		return row.kind === 'appointment' && row.status === 'pending_confirmation';
 	}
 
 	function canCancel(row) {
-		if (row.kind === 'cita_legacy') return ['pendiente', 'confirmada'].includes(row.status);
-		return ['pending_confirmation', 'confirmed'].includes(row.status);
+		return row.kind === 'appointment' && ['pending_confirmation', 'confirmed'].includes(row.status);
 	}
 
 	function canCompleteWalker(row) {
-		if (row.kind === 'cita_legacy') return false;
-		if (row.bookingSource !== 'walker_request') return false;
+		if (row.kind !== 'appointment' || row.bookingSource !== 'walker_request') return false;
 		return ['pending_confirmation', 'confirmed'].includes(row.status);
 	}
 
-	function canRecordDiagnostico(row) {
-		return row.kind === 'cita_legacy' && row.status === 'confirmada';
+	function canCompleteVetClinicSlot(row) {
+		if (row.kind !== 'appointment' || row.bookingSource !== 'availability_slot') return false;
+		return ['pending_confirmation', 'confirmed'].includes(row.status);
 	}
 
 	function petIdString(row) {
@@ -446,6 +531,17 @@ export function ProviderDashboardPage() {
 
 	const isVet = user.providerType === 'veterinaria';
 	const isWalkerCare = user?.providerType === 'paseador' || user?.providerType === 'cuidador';
+
+	function appointmentRowId(row) {
+		if (!row || row.kind !== 'appointment') return '';
+		return String(row.id ?? row._id ?? '');
+	}
+
+	function canProviderReviewClientRow(row) {
+		if (!isWalkerCare) return false;
+		if (row.kind !== 'appointment' || row.status !== 'completed') return false;
+		return true;
+	}
 	const agendaStart = user?.providerProfile?.agendaSlotStart || '09:00';
 	const agendaEnd = user?.providerProfile?.agendaSlotEnd || '18:00';
 
@@ -454,6 +550,54 @@ export function ProviderDashboardPage() {
 		if (row.kind !== 'appointment') return false;
 		if (!petIdString(row)) return false;
 		return ['confirmed', 'completed'].includes(row.status);
+	}
+
+	function closeClientReviewModal() {
+		setClientReviewRow(null);
+		setProvMsg('');
+		setProvEligErr('');
+	}
+
+	async function submitProviderToOwnerReview() {
+		if (!clientReviewRow) return;
+		const id = appointmentRowId(clientReviewRow);
+		if (!id) return;
+		setProvSubmit(true);
+		setProvMsg('');
+		try {
+			if (provElig?.canReview) {
+				const res = await createReviewForAppointment(id, {
+					rating: Number(provForm.rating),
+					comment: provForm.comment
+				});
+				setProvMsg(res.message || 'Reseña publicada.');
+			} else if (provElig?.hasReview && provElig.reviewId) {
+				if (provElig.canEdit === false) {
+					setProvMsg('El plazo de edición (24 h) expiró.');
+					setProvSubmit(false);
+					return;
+				}
+				const res = await updateMyReview(String(provElig.reviewId), {
+					rating: Number(provForm.rating),
+					comment: provForm.comment
+				});
+				setProvMsg(res.message || 'Reseña actualizada.');
+			} else {
+				setProvMsg('No se puede reseñar en este momento.');
+				setProvSubmit(false);
+				return;
+			}
+			await reloadBookings();
+			const e2 = await fetchReviewEligibility(id);
+			setProvElig(e2);
+			if (e2?.review) {
+				setProvForm({ rating: e2.review.rating, comment: e2.review.comment || e2.review.observation || '' });
+			}
+		} catch (err) {
+			setProvMsg(err.response?.data?.message || 'Error al guardar la reseña.');
+		} finally {
+			setProvSubmit(false);
+		}
 	}
 
 	return (
@@ -467,7 +611,7 @@ export function ProviderDashboardPage() {
 						<h1 id="provider-dashboard-title">{isVet ? 'Inicio de clínica' : 'Panel de servicios'}</h1>
 						<p className="provider-dash-header__lede">
 							{isVet
-								? 'Citas, líneas de atención (cada prof. o servicio) y tramos sueltos que el cliente reserva en línea.'
+								? 'Líneas de atención (cada prof. o servicio) y tramos sueltos que el cliente reserva en línea.'
 								: 'Gestiona solicitudes de paseo o cuidado y el estado de tus reservas.'}
 						</p>
 					</div>
@@ -487,36 +631,178 @@ export function ProviderDashboardPage() {
 				</header>
 			</div>
 
+			<div className="app-form provider-dashboard__flow">
 			<section className="edit-fieldset book-section provider-dash-section">
 				<h2 id="reservas-calendario">
-					{isVet ? 'Reservas, citas y calendario' : 'Reservas y citas'}
+					{isVet ? 'Reservas y calendario' : 'Reservas'}
 				</h2>
 				{isVet ? (
 					<>
-						<p className="hint muted" style={{ marginTop: 0, maxWidth: '44rem' }}>
-							<strong>Horas ya reservadas:</strong> aparecen en el calendario (línea de atención + nombre del
-							 cliente) y en la tabla bajo con las acciones. <strong>Turno libre:</strong> mientras un tramo
-							esté publicado, cualquiera puede tomarlo; al reservar, deja de figurar en «Tramos libres» (abajo) y
-							<strong> pasa a esta lista y al calendario</strong>.
-						</p>
-						<ProviderClinicCalendar events={calendarEvents} />
-						<p className="hint muted" style={{ margin: '0.5rem 0 0' }}>
-							Acciones: confirmar o cancelar; desde citas de agenda, abrir ficha de atención.
-						</p>
+						<div
+							className="vet-agenda__tabs"
+							role="tablist"
+							aria-label="Vista de agenda: citas o tramos ofrecidos"
+						>
+							<button
+								type="button"
+								role="tab"
+								id="tab-vet-citas"
+								aria-controls="panel-vet-citas"
+								aria-selected={vetAgendaTab === 'citas'}
+								className="vet-agenda__tab"
+								onClick={() => setVetAgendaTab('citas')}
+							>
+								Citas y reservas
+							</button>
+							<button
+								type="button"
+								role="tab"
+								id="tab-vet-oferta"
+								aria-controls="panel-vet-oferta"
+								aria-selected={vetAgendaTab === 'oferta'}
+								className="vet-agenda__tab"
+								onClick={() => setVetAgendaTab('oferta')}
+							>
+								Tramos ofrecidos
+							</button>
+						</div>
+
+						{vetAgendaTab === 'citas' ? (
+							<div id="panel-vet-citas" role="tabpanel" aria-labelledby="tab-vet-citas">
+								<p className="hint muted" style={{ marginTop: 0, maxWidth: '50rem' }}>
+									<strong>Calendario (hora Chile):</strong> solo <strong>reservas con dueño y mascota</strong>
+									(confirmadas o pendientes). La tabla de abajo sirve para confirmar, cancelar, completar o
+									ir a ficha. Para ver u operar <strong>tramos sueltos aún a la venta</strong>, abre la
+									pestaña <em>Tramos ofrecidos</em>.
+								</p>
+								<ProviderClinicCalendar
+									key="vet-citas"
+									events={calendarEvents}
+									mode="citas"
+									citasLoading={loadingBookings}
+								/>
+							</div>
+						) : (
+							<div id="panel-vet-oferta" role="tabpanel" aria-labelledby="tab-vet-oferta">
+								<p className="hint muted" style={{ marginTop: 0, maxWidth: '50rem' }}>
+									<strong>Oferta a futuro:</strong> tramos aún reservables (libre o &quot;cerrado&quot; en
+									app), ordenados en día / semana / mes. Elige <strong>una línea</strong> o déjalo en
+									<strong> todas</strong>. Cada bloque: Cerrar, Abrir o Quitar. Para rellenar fechas, usa
+									<strong> Mantenimiento</strong> en la otra pestaña.
+								</p>
+								<div className="vet-oferta-linebar">
+									<span className="vet-oferta-linebar__label">Línea de atención</span>
+									<div className="vet-oferta-linebar__chips">
+										<button
+											type="button"
+											className={'vet-oferta-linebar__chip' + (ofertaLineFilter === '' ? ' is-active' : '')}
+											aria-pressed={ofertaLineFilter === ''}
+											onClick={() => setOfertaLineFilter('')}
+										>
+											Todas las líneas
+										</button>
+										{clinicLines
+											.filter((l) => l.active !== false)
+											.map((l) => {
+												const id = String(l._id != null ? l._id : l.id != null ? l.id : '');
+												if (!id) return null;
+												return (
+													<button
+														key={id}
+														type="button"
+														className={
+															'vet-oferta-linebar__chip' +
+															(ofertaLineFilter === id ? ' is-active' : '')
+														}
+														aria-pressed={ofertaLineFilter === id}
+														onClick={() => setOfertaLineFilter(id)}
+													>
+														{l.displayName || 'Línea'}
+													</button>
+												);
+											})}
+									</div>
+									<span className="vet-oferta-linebar__count" aria-live="polite">
+										{filteredOfertaSlots.length} tramo
+										{filteredOfertaSlots.length === 1 ? '' : 's'}
+									</span>
+								</div>
+								<ProviderClinicCalendar
+									key="vet-oferta"
+									events={ofertaCalEvents}
+									mode="oferta"
+									agendaLoading={loadingSlots}
+									onSlotBlock={onBlockSlot}
+									onSlotUnblock={onUnblockSlot}
+									onSlotDelete={onDeleteSlot}
+								/>
+							</div>
+						)}
+
+						{agendaError ? (
+							<p className="error" style={{ marginTop: 8 }} role="alert">
+								{agendaError}
+							</p>
+						) : null}
+						{agendaMsg && !agendaError ? <p className="review-success" style={{ marginTop: 6 }}>{agendaMsg}</p> : null}
+						{vetAgendaTab === 'citas' ? (
+							<>
+								<details className="agenda-advanced-details" id="agenda-mantenimiento" style={{ marginTop: 8 }}>
+									<summary className="muted" style={{ cursor: 'pointer', fontSize: '0.95rem', listStyle: 'revert' }}>
+										Mantenimiento: rellenar franjas o &quot;permitir otra vez&quot; tramos quitados a mano
+									</summary>
+									<p className="hint muted" style={{ margin: '0.5rem 0' }}>
+										<strong>Rellenar:</strong> añade tramos faltantes en 8 semanas, respetando reservas y
+										omitidos. <strong>Permitir otra vez</strong> usa el rango de fechas bajo: limpia la memoria
+										de una franja que borraste a mano para que pueda volver a publicarse.
+									</p>
+									<div className="agenda-generate-form" style={{ marginBottom: 4 }}>
+										<div className="edit-row-2">
+											<label className="edit-field">
+												<span>Rango: desde (fecha)</span>
+												<input type="date" value={omitsFrom} onChange={(e) => setOmitsFrom(e.target.value)} />
+											</label>
+											<label className="edit-field">
+												<span>Hasta</span>
+												<input type="date" value={omitsTo} onChange={(e) => setOmitsTo(e.target.value)} />
+											</label>
+										</div>
+									</div>
+									<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 2 }}>
+										<form onSubmit={onForceFillAgenda} style={{ margin: 0 }}>
+											<button type="submit" className="btn-sm" style={{ margin: 0 }}>
+												Rellenar agenda ahora
+											</button>
+										</form>
+										<form onSubmit={onClearOmittedAgenda} style={{ margin: 0 }}>
+											<button type="submit" className="btn-sm">
+												Permitir otra vez (rango de arriba)
+											</button>
+										</form>
+									</div>
+								</details>
+								<p className="hint muted" style={{ margin: '0.5rem 0 0' }}>
+									Desde <strong>Atención clínica</strong> en la tabla abres ficha; confirma o reseña al dueño
+									con los botones de la fila.
+								</p>
+							</>
+						) : null}
 					</>
 				) : (
 					<p className="hint muted" style={{ marginTop: 0 }}>
 						Confirmar o cancelar; en paseo y cuidado podrás marcar el servicio como completado.
 					</p>
 				)}
-				{loadingBookings ? <p>Cargando…</p> : null}
-				{error ? <p className='error'>{error}</p> : null}
 				{bookingActionMsg ? <p className='review-success'>{bookingActionMsg}</p> : null}
 				{bookingActionErr ? <p className='error'>{bookingActionErr}</p> : null}
-				{!loadingBookings && bookings.length === 0 ? (
-					<p className='muted'>Aún no hay ítems.</p>
-				) : null}
-				{bookings.length > 0 ? (
+				{!isVet || vetAgendaTab === 'citas' ? (
+					<>
+						{loadingBookings ? <p>Cargando…</p> : null}
+						{error ? <p className='error'>{error}</p> : null}
+						{!loadingBookings && bookings.length === 0 ? (
+							<p className='muted'>Aún no hay ítems.</p>
+						) : null}
+						{bookings.length > 0 ? (
 					<div className='bookings-table-wrap'>
 						<table className='bookings-table'>
 							<thead>
@@ -532,38 +818,24 @@ export function ProviderDashboardPage() {
 							</thead>
 							<tbody>
 								{bookings.map((row) => {
-									const isLegacy = row.kind === 'cita_legacy';
-									const own = isLegacy ? row.dueno : row.owner;
-									const st = isLegacy
-										? CITA_ESTADO_LABELS[row.status] || row.status
-										: APPOINTMENT_STATUS_LABELS[row.status] || row.status;
-									const origin = isLegacy
-										? 'Cita (histórico)'
-										: BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource;
-									let detail = '—';
-									if (isLegacy) {
-										const m = row.mascota;
-										detail = [row.servicio, m ? `${m.nombre} (${m.especie})` : null]
-											.filter(Boolean)
-											.join(' · ');
-									} else {
-										const pet = row.pet;
-										detail = [pet?.name, pet?.species, row.reason].filter(Boolean).join(' · ') || '—';
-									}
+									const own = row.owner;
+									const st = APPOINTMENT_STATUS_LABELS[row.status] || row.status;
+									const origin = BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource;
+									const pet = row.pet;
+									const detail = [pet?.name, pet?.species, row.reason].filter(Boolean).join(' · ') || '—';
 									const showConfirm = canConfirm(row);
 									const showCancel = canCancel(row);
-									const showCompleteWalker = canCompleteWalker(row);
-									const showDiagnostico = canRecordDiagnostico(row);
+									const showComplete =
+										canCompleteWalker(row) || (isVet && canCompleteVetClinicSlot(row));
 									const showClinical = canRegisterClinical(row);
+									const showClientReview = canProviderReviewClientRow(row);
 									const pid = petIdString(row);
 									const lineLabel = isVet
-										? isLegacy
-											? row.servicio || 'Cita (formulario clásico)'
-											: row.clinicService?.displayName
-												? String(row.clinicService.displayName)
-												: row.bookingSource === 'walker_request'
-													? 'Paseo / cuidado'
-													: '—'
+										? row.clinicService?.displayName
+											? String(row.clinicService.displayName)
+											: row.bookingSource === 'walker_request'
+												? 'Paseo / cuidado'
+												: '—'
 										: null;
 									return (
 										<tr key={`${row.kind}-${row.id}`}>
@@ -584,18 +856,13 @@ export function ProviderDashboardPage() {
 														Cancelar
 													</button>
 												) : null}
-												{showCompleteWalker ? (
+												{showComplete ? (
 													<button
 														type='button'
 														className='btn-complete btn-sm'
-														onClick={() => onCompleteWalker(row)}
+														onClick={() => onCompleteBooking(row)}
 													>
 														Completar
-													</button>
-												) : null}
-												{showDiagnostico ? (
-													<button type='button' className='btn-sm' onClick={() => onDiagnosticoCita(row)}>
-														Diagnóstico
 													</button>
 												) : null}
 												{showClinical ? (
@@ -606,7 +873,20 @@ export function ProviderDashboardPage() {
 														Atención clínica
 													</Link>
 												) : null}
-												{!showConfirm && !showCancel && !showCompleteWalker && !showDiagnostico && !showClinical ? (
+												{showClientReview ? (
+													<button
+														type='button'
+														className='btn-sm'
+														onClick={() => setClientReviewRow(row)}
+													>
+														Reseña al dueño
+													</button>
+												) : null}
+												{!showConfirm &&
+												!showCancel &&
+												!showComplete &&
+												!showClinical &&
+												!showClientReview ? (
 													<span className='muted'>—</span>
 												) : null}
 											</td>
@@ -616,6 +896,8 @@ export function ProviderDashboardPage() {
 							</tbody>
 						</table>
 					</div>
+						) : null}
+					</>
 				) : null}
 			</section>
 
@@ -678,117 +960,6 @@ export function ProviderDashboardPage() {
 								</button>
 							</form>
 							{clinicLineMsg ? <p className="review-success">{clinicLineMsg}</p> : null}
-						</section>
-					) : null}
-
-					{isVet ? (
-						<section
-							className="edit-fieldset book-section"
-							aria-labelledby="clinic-slots-heading"
-						>
-							<h2 id="clinic-slots-heading">2. Tramos libres (aún a la reserva pública)</h2>
-							<p className="hint muted" style={{ marginTop: 0, maxWidth: '42rem' }}>
-								Tras definir o <strong>añadir una línea</strong>, se generan tramos consecutivos en el
-								horario de recepción (hoy a +8 semanas) sin paso extra. <strong>Al reservar un
-								cliente</strong> ese tramo deja de verse aquí y pasa a <a href="#reservas-calendario">arriba</a>.
-							</p>
-							<div className="agenda-generate-form" style={{ marginTop: 8 }}>
-								<div className="edit-row-2">
-									<label className="edit-field">
-										<span>Listar tramos: desde (fecha)</span>
-										<input
-											type="date"
-											value={agendaFrom}
-											onChange={(e) => setAgendaFrom(e.target.value)}
-										/>
-									</label>
-									<label className="edit-field">
-										<span>Hasta (fecha)</span>
-										<input
-											type="date"
-											value={agendaTo}
-											onChange={(e) => setAgendaTo(e.target.value)}
-										/>
-									</label>
-								</div>
-								<p className="muted" style={{ margin: '0.5rem 0 0', fontSize: '0.88rem' }}>
-									Solo afecta <strong>esta</strong> lista. Vacía ambas para ver toda la agenda libre
-									(futura).
-								</p>
-							</div>
-							{agendaError ? (
-								<p className="error" style={{ marginTop: 12 }} role="alert">
-									{agendaError}
-								</p>
-							) : null}
-							{agendaMsg && !agendaError ? <p className="review-success" style={{ marginTop: 12 }}>{agendaMsg}</p> : null}
-							<details
-								className="agenda-advanced-details"
-								style={{ marginTop: 8, padding: '0.5rem 0' }}
-							>
-								<summary
-									className="muted"
-									style={{ cursor: 'pointer', fontSize: '0.95rem', listStyle: 'revert' }}
-								>
-									Si faltan tramos o quieres forzar un rellenado &mdash; o si quitaste turnos a mano
-								</summary>
-								<p className="hint muted" style={{ margin: '0.5rem 0' }}>
-									Recrea tramos faltantes en hoy +8 semanas, respetando citas y borrados que indique el
-									sistema. Si al borrar a mano el tramo dejó de salir, usa &quot;Permitir otra vez&quot;
-									antes.
-								</p>
-								<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-									<form onSubmit={onForceFillAgenda} style={{ margin: 0 }}>
-										<button type="submit" className="btn-sm" style={{ margin: 0 }}>
-											Rellenar agenda ahora
-										</button>
-									</form>
-									<form onSubmit={onClearOmittedAgenda} style={{ margin: 0 }}>
-										<button type="submit" className="btn-sm">
-											Permitir otra vez tramos que quité a mano
-										</button>
-									</form>
-								</div>
-							</details>
-							<h3 style={{ margin: '1.25rem 0 0.5rem', fontSize: '1.1rem' }}>
-								Tramos libres o cerrados
-							</h3>
-							<p className="muted" style={{ margin: '0 0 0.5rem', fontSize: '0.9rem' }}>
-								Chile. Cada tramo = línea de atención + rango. Los <strong>reservados</strong> no se listan: están en
-								<strong> calendario y tabla</strong>.
-							</p>
-							{loadingSlots ? <p>Cargando…</p> : null}
-							{!loadingSlots && slots.length === 0 ? <p className="muted">No hay tramos en el rango elegido.</p> : null}
-							<ul className="slot-admin-list">
-								{slots.map((s) => {
-									const lineName =
-										s.clinicServiceId && typeof s.clinicServiceId === 'object'
-											? s.clinicServiceId.displayName
-											: null;
-									return (
-										<li key={String(s._id)}>
-											<span>
-												{lineName ? <strong className="slot-line-name">{lineName} · </strong> : null}
-												{formatInChile(s.startAt)} — {formatTimeInChile(s.endAt)}{' '}
-												<small className="muted">({s.status || '—'})</small>
-											</span>
-											{s.status === 'available' ? (
-												<button type="button" className="btn-sm" onClick={() => onBlockSlot(s._id)}>
-													Cerrar turno
-												</button>
-											) : null}
-											{s.status === 'blocked' ? (
-												<button type="button" className="btn-sm" onClick={() => onUnblockSlot(s._id)}>
-													Abrir turno
-												</button>
-											) : null}
-											<button type="button" className="btn-reject" onClick={() => onDeleteSlot(s._id)}>
-												Quitar
-											</button>
-										</li>
-									);
-								})}
-							</ul>
 						</section>
 					) : null}
 
@@ -858,6 +1029,119 @@ export function ProviderDashboardPage() {
 			) : (
 				<p className="muted">Añadiremos secciones según el tipo de proveedor cuando aplique.</p>
 			)}
+			</div>
+
+			{clientReviewRow ? (
+				<div
+					className="report-modal-backdrop"
+					role="presentation"
+					onClick={() => {
+						if (!provSubmit) closeClientReviewModal();
+					}}
+				>
+					<div
+						className="report-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="prov-client-review-title"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<h3 id="prov-client-review-title">Reseña al dueño (cliente)</h3>
+						<p className="muted" style={{ fontSize: '0.9rem' }}>
+							{formatRange(clientReviewRow.startAt, clientReviewRow.endAt)} —{' '}
+							{ownerLabel(clientReviewRow.owner || clientReviewRow.dueno)}
+						</p>
+						{provEligLoading ? <p>Cargando…</p> : null}
+						{provEligErr ? <p className="error">{provEligErr}</p> : null}
+						{!provEligLoading && provElig && !provElig.canReview && !provElig.hasReview ? (
+							<p className="muted">
+								En esta cita aún no aplica reseñar al cliente o no tienes permiso. Estado:{' '}
+								{provElig.appointmentStatus || '—'}.
+							</p>
+						) : null}
+						{!provEligLoading && provElig && (provElig.canReview || provElig.hasReview) ? (
+							provElig.hasReview && provElig.canEdit === false ? (
+								<div>
+									<p>
+										<strong>Calificación:</strong> {provForm.rating} / 5
+									</p>
+									{provForm.comment ? (
+										<p>
+											<strong>Observación:</strong> {provForm.comment}
+										</p>
+									) : null}
+									<p className="muted" style={{ fontSize: '0.9rem' }}>
+										La edición solo estuvo disponible 24 h tras publicar.
+									</p>
+									<div className="report-modal-actions">
+										<button type="button" className="btn-sm" onClick={closeClientReviewModal}>
+											Cerrar
+										</button>
+									</div>
+								</div>
+							) : (
+								<form
+									className="review-form"
+									onSubmit={(e) => {
+										e.preventDefault();
+										void submitProviderToOwnerReview();
+									}}
+								>
+									<label className="review-field">
+										<span>Calificación (estrellas)</span>
+										<select
+											value={provForm.rating}
+											onChange={(e) =>
+												setProvForm((f) => ({ ...f, rating: Number(e.target.value) }))
+											}
+										>
+											{[5, 4, 3, 2, 1].map((n) => (
+												<option key={n} value={n}>
+													{n} estrellas
+												</option>
+											))}
+										</select>
+									</label>
+									<label className="review-field">
+										<span>Observación (opcional, máx. 200)</span>
+										<textarea
+											value={provForm.comment}
+											onChange={(e) =>
+												setProvForm((f) => ({ ...f, comment: e.target.value }))
+											}
+											rows={3}
+											maxLength={200}
+										/>
+									</label>
+									{provElig.hasReview ? (
+										<p className="muted" style={{ fontSize: '0.85rem' }}>
+											Solo puedes editar en las 24 h posteriores a publicar.
+										</p>
+									) : null}
+									{provMsg ? <p className="review-success">{provMsg}</p> : null}
+									<div className="report-modal-actions">
+										<button
+											type="button"
+											className="btn-sm"
+											onClick={closeClientReviewModal}
+											disabled={provSubmit}
+										>
+											Cerrar
+										</button>
+										<button type="submit" className="review-submit" disabled={provSubmit}>
+											{provSubmit
+												? 'Guardando…'
+												: provElig.hasReview
+													? 'Guardar cambios'
+													: 'Publicar reseña'}
+										</button>
+									</div>
+								</form>
+							)
+						) : null}
+					</div>
+				</div>
+			) : null}
 		</div>
 	);
 }

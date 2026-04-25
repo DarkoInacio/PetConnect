@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { upgradeToProviderFormData } from '../services/authForms';
-import { OwnerSubnav } from '../components/OwnerSubnav';
 import { hasRole } from '../lib/userRoles';
 
 const OPTIONS = [
@@ -62,7 +61,7 @@ export function OfferProviderServicesPage() {
 	}
 
 	if (!user) {
-		return <Navigate to="/login" replace state={{ from: '/mi-perfil/ofrecer-servicios' }} />;
+		return <Navigate to="/login" replace state={{ from: '/cuenta/ofrecer-servicios' }} />;
 	}
 	if (!hasDueno(user)) {
 		return (
@@ -79,7 +78,7 @@ export function OfferProviderServicesPage() {
 	if (hasProveedor(user)) {
 		return (
 			<div className="page provider-edit-page">
-				<Link className="back-link" to="/mi-perfil">
+				<Link className="back-link" to="/cuenta/perfil">
 					← Mi perfil
 				</Link>
 				<div className="page-surface">
@@ -138,9 +137,9 @@ export function OfferProviderServicesPage() {
 
 	if (step === 'elegir') {
 		return (
-			<div className="page auth-page register-provider-page">
-				<Link className="back-link" to="/mi-perfil">
-					← Mi perfil
+			<div className="auth-page register-provider-page owner-hub-section">
+				<Link className="back-link" to="/cuenta/perfil">
+					← Volver a mi perfil
 				</Link>
 				<div className="page-surface page-surface--wide">
 					<header className="page-hero" style={{ marginBottom: '1rem' }}>
@@ -150,7 +149,6 @@ export function OfferProviderServicesPage() {
 							proveedor a tu cuenta; un admin debe aprobarlo. No necesitas otra pantalla de registro.
 						</p>
 					</header>
-					<OwnerSubnav />
 					<div className="provider-pick-grid" style={{ marginTop: 16 }}>
 						{OPTIONS.map((opt) => (
 							<button
@@ -175,7 +173,7 @@ export function OfferProviderServicesPage() {
 	}
 
 	return (
-		<div className="page auth-page register-provider-page">
+		<div className="auth-page register-provider-page owner-hub-section">
 			<button type="button" className="back-link" onClick={() => setStep('elegir')}>
 				← Elegir otro tipo
 			</button>
@@ -184,7 +182,6 @@ export function OfferProviderServicesPage() {
 					<h1>Datos de tu servicio ({providerType})</h1>
 					<p className="muted">Revisa nombre y teléfono. Tu correo de acceso no cambia.</p>
 				</header>
-				<OwnerSubnav />
 				{msg ? <p className="review-success">{msg}</p> : null}
 				<form className="auth-form" onSubmit={onSubmit}>
 					<label className="auth-field">

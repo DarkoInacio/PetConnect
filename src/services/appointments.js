@@ -57,3 +57,9 @@ export async function completeWalkerAppointmentAsProvider(appointmentId) {
 	const { data } = await api.patch(`/appointments/${appointmentId}/provider/complete-walker`);
 	return data;
 }
+
+/** Solo bookingSource availability_slot (clínica / franja de agenda). */
+export async function completeVetClinicAppointmentAsProvider(appointmentId) {
+	const { data } = await api.patch(`/appointments/${appointmentId}/provider/complete-vet`);
+	return data;
+}

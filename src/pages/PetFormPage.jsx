@@ -95,7 +95,7 @@ export function PetFormPage() {
 					color: color.trim(),
 					fotoFile: foto || undefined
 				});
-				navigate('/mascotas');
+				navigate('/cuenta/mascotas');
 			} else {
 				await updatePet(
 					petId,
@@ -128,7 +128,7 @@ export function PetFormPage() {
 
 	return (
 		<div className='page provider-edit-page'>
-			<Link className='back-link' to={isNew ? '/mascotas' : `/mascotas/${petId}`}>
+			<Link className='back-link' to={isNew ? '/cuenta/mascotas' : `/mascotas/${petId}`}>
 				Volver
 			</Link>
 			<h1>{isNew ? 'Registrar mascota' : 'Editar mascota'}</h1>

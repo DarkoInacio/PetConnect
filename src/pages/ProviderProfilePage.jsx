@@ -64,6 +64,8 @@ export function ProviderProfilePage() {
 	const isSlugRoute = Boolean(tipo && slug);
 	const [searchParams, setSearchParams] = useSearchParams();
 	const resenaCitaId = (searchParams.get('resenaCita') || searchParams.get('citaResena') || '').trim();
+	const pestanaRaw = (searchParams.get('pestana') || 'perfil').toLowerCase();
+	const activeTab = pestanaRaw === 'resenas' || pestanaRaw === 'reseñas' ? 'resenas' : 'perfil';
 	const { user } = useAuth();
 	const [provider, setProvider] = useState(null);
 	const [profileReviewTick, setProfileReviewTick] = useState(0);
@@ -86,6 +88,23 @@ export function ProviderProfilePage() {
 	const [reportOpen, setReportOpen] = useState(false);
 	const [reportReviewId, setReportReviewId] = useState(null);
 	const [reportToast, setReportToast] = useState('');
+
+	function setProfileTab(next) {
+		const n = new URLSearchParams(searchParams);
+		n.set('pestana', next);
+		setSearchParams(n, { replace: true });
+	}
+
+	/** Con ?resenaCita= abrir pestaña Reseñas (se respeta pestana=perfil en la URL). */
+	useEffect(() => {
+		if (!resenaCitaId) return;
+		const p = (searchParams.get('pestana') || '').toLowerCase();
+		if (p === 'perfil') return;
+		if (p === 'resenas' || p === 'reseñas') return;
+		const n = new URLSearchParams(searchParams);
+		n.set('pestana', 'resenas');
+		setSearchParams(n, { replace: true });
+	}, [resenaCitaId, searchParams, setSearchParams]);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -124,6 +143,12 @@ export function ProviderProfilePage() {
 		setReviewsState((s) => ({ ...s, loading: true }));
 
 		async function loadReviews() {
+			const fallbackFromProfile = (() => {
+				const recent = provider?.reviewsRecent;
+				if (!Array.isArray(recent) || recent.length === 0) return { items: [], total: 0, summary: null };
+				return { items: recent, total: recent.length, summary: provider?.ratingSummary || null };
+			})();
+
 			try {
 				const data = await fetchProviderReviews(
 					provider.id,
@@ -146,12 +171,24 @@ export function ProviderProfilePage() {
 				});
 			} catch {
 				if (controller.signal.aborted) return;
-				setReviewsState((s) => ({ ...s, loading: false }));
+				/* Misma carga pública: si falla el listado, usar preview del GET /perfil. */
+				setReviewsState((s) => ({
+					...s,
+					loading: false,
+					items: fallbackFromProfile.items.length > 0 ? fallbackFromProfile.items : s.items,
+					total: fallbackFromProfile.total > 0 ? fallbackFromProfile.total : s.total
+				}));
+				if (fallbackFromProfile.summary) {
+					setReviewListMeta((m) => ({
+						...m,
+						ratingSummary: m.ratingSummary || fallbackFromProfile.summary
+					}));
+				}
 			}
 		}
 		loadReviews();
 		return () => controller.abort();
-	}, [provider?.id, orden, profileReviewTick]);
+	}, [provider, orden, profileReviewTick]);
 
 	const loadMoreReviews = async () => {
 		if (!provider?.id || reviewsState.loading) return;
@@ -269,30 +306,29 @@ export function ProviderProfilePage() {
 					</div>
 				</div>
 
-				{resenaCitaId ? (
-					<>
-						<OwnerAppointmentReviewPanel
-							appointmentId={resenaCitaId}
-							providerName={`${provider.name || ''} ${provider.lastName || ''}`.trim()}
-							onReviewSaved={() => setProfileReviewTick((t) => t + 1)}
-						/>
-						<p className="muted" style={{ margin: '0 0 0.5rem' }}>
-							<button
-								type="button"
-								className="link-button"
-								onClick={() => {
-									const n = new URLSearchParams(searchParams);
-									n.delete('resenaCita');
-									n.delete('citaResena');
-									setSearchParams(n, { replace: true });
-								}}
-							>
-								Ocultar formulario de reseña
-							</button>
-						</p>
-					</>
-				) : null}
+				<div className='profile-tabs' role='tablist' aria-label='Contenido del perfil'>
+					<button
+						type='button'
+						role='tab'
+						className={activeTab === 'perfil' ? 'profile-tab profile-tab--active' : 'profile-tab'}
+						aria-selected={activeTab === 'perfil'}
+						onClick={() => setProfileTab('perfil')}
+					>
+						Perfil
+					</button>
+					<button
+						type='button'
+						role='tab'
+						className={activeTab === 'resenas' ? 'profile-tab profile-tab--active' : 'profile-tab'}
+						aria-selected={activeTab === 'resenas'}
+						onClick={() => setProfileTab('resenas')}
+					>
+						Reseñas
+					</button>
+				</div>
 
+				{activeTab === 'perfil' ? (
+					<>
 				{gallery.length > 0 ? (
 					<div className='profile-gallery'>
 						{gallery.map((img, idx) => (
@@ -378,6 +414,56 @@ export function ProviderProfilePage() {
 					</div>
 				</div>
 
+				{!hasCoordinates ? (
+					<p className='no-map-note'>
+						Este perfil no tiene coordenadas precisas todavía, por lo que no se puede mostrar el mini mapa.
+					</p>
+				) : null}
+
+				<div className='profile-cta-desktop'>
+					<a
+						className={`book-btn ${isTemporarilyClosed ? 'disabled' : ''}`}
+						href={isTemporarilyClosed ? '#' : ctaHref}
+						aria-disabled={isTemporarilyClosed}
+						onClick={(e) => {
+							if (isTemporarilyClosed) e.preventDefault();
+						}}
+					>
+						{cta.label}
+					</a>
+					{isTemporarilyClosed ? (
+						<p className='closed-note'>Este proveedor está temporalmente cerrado. No es posible agendar por ahora.</p>
+					) : null}
+				</div>
+					</>
+				) : null}
+
+				{activeTab === 'resenas' ? (
+					<>
+				{resenaCitaId ? (
+					<>
+						<OwnerAppointmentReviewPanel
+							appointmentId={resenaCitaId}
+							providerName={`${provider.name || ''} ${provider.lastName || ''}`.trim()}
+							onReviewSaved={() => setProfileReviewTick((t) => t + 1)}
+						/>
+						<p className='muted' style={{ margin: '0 0 0.5rem' }}>
+							<button
+								type='button'
+								className='link-button'
+								onClick={() => {
+									const n = new URLSearchParams(searchParams);
+									n.delete('resenaCita');
+									n.delete('citaResena');
+									setSearchParams(n, { replace: true });
+								}}
+							>
+								Quitar enlace a esta cita
+							</button>
+						</p>
+					</>
+				) : null}
+
 				<section className='profile-section reviews-section'>
 					<h2>Reseñas</h2>
 					{reviewListMeta.basedOnLabel ? (
@@ -442,7 +528,9 @@ export function ProviderProfilePage() {
 											</button>
 										) : null}
 									</div>
-									{r.comment ? <p className='review-comment'>{r.comment}</p> : null}
+									{r.observation || r.comment ? (
+										<p className='review-comment'>{r.observation || r.comment}</p>
+									) : null}
 									{r.providerResponse ? (
 										<div className='provider-reply public'>
 											<p className='provider-reply-label'>{r.providerResponse.label || 'Respuesta'}</p>
@@ -468,13 +556,16 @@ export function ProviderProfilePage() {
 					<p className='muted' style={{ marginTop: '1.25rem' }}>
 						{isOwner ? (
 							<>
-								Las reseñas se vinculan a citas finalizadas. Puedes valorar a este profesional desde{' '}
-								<Link to='/mis-reservas'>Mis reservas</Link> al terminar un servicio.
+								La valoración pública (estrellas y observación opcional) exige la cita en estado{' '}
+								<strong>completada</strong>. Puedes publicarla o revisar el historial en{' '}
+								<Link to='/cuenta/reservas'>Reservas</Link>.
 							</>
 						) : getStoredAuthToken() ? (
-							<>Para publicar, agenda un servicio y, una vez finalizada la cita, deja tu opinión en Mis reservas.</>
+							<>
+								Tras un servicio completado, el dueño podrá reseñar desde <Link to='/cuenta/reservas'>tu cuenta, reservas</Link>.
+							</>
 						) : (
-							<>Inicia sesión como dueño, confirma una cita y podrás dejar reseña desde Mis reservas.</>
+							<>Solo el dueño, con cita finalizada, puede reseñar; hazlo desde Mis reservas.</>
 						)}
 					</p>
 				</section>
@@ -487,14 +578,12 @@ export function ProviderProfilePage() {
 					}}
 					onDone={(msg) => setReportToast(msg)}
 				/>
-
-				{!hasCoordinates ? (
-					<p className='no-map-note'>
-						Este perfil no tiene coordenadas precisas todavía, por lo que no se puede mostrar el mini mapa.
-					</p>
+					</>
 				) : null}
+			</section>
 
-				<div className='profile-cta-desktop'>
+			{activeTab === 'perfil' ? (
+				<div className='profile-cta-sticky-mobile'>
 					<a
 						className={`book-btn ${isTemporarilyClosed ? 'disabled' : ''}`}
 						href={isTemporarilyClosed ? '#' : ctaHref}
@@ -505,24 +594,8 @@ export function ProviderProfilePage() {
 					>
 						{cta.label}
 					</a>
-					{isTemporarilyClosed ? (
-						<p className='closed-note'>Este proveedor está temporalmente cerrado. No es posible agendar por ahora.</p>
-					) : null}
 				</div>
-			</section>
-
-			<div className='profile-cta-sticky-mobile'>
-				<a
-					className={`book-btn ${isTemporarilyClosed ? 'disabled' : ''}`}
-					href={isTemporarilyClosed ? '#' : ctaHref}
-					aria-disabled={isTemporarilyClosed}
-					onClick={(e) => {
-						if (isTemporarilyClosed) e.preventDefault();
-					}}
-				>
-					{cta.label}
-				</a>
-			</div>
+			) : null}
 		</div>
 	);
 }

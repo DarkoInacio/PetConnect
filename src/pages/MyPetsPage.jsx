@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { OwnerSubnav } from '../components/OwnerSubnav';
 import { useAuth } from '../hooks/useAuth';
 import { listPets } from '../services/pets';
 import { PetPhoto } from '../components/PetPhoto';
@@ -43,7 +42,7 @@ export function MyPetsPage() {
 	}
 
 	if (!user) {
-		return <Navigate to='/login' replace state={{ from: '/mascotas' }} />;
+		return <Navigate to='/login' replace state={{ from: '/cuenta/mascotas' }} />;
 	}
 
 	if (user.role !== 'dueno') {
@@ -62,10 +61,7 @@ export function MyPetsPage() {
 	}
 
 	return (
-		<div className="page pets-page">
-			<Link className="back-link" to="/">
-				← Volver al mapa
-			</Link>
+		<div className="owner-hub-section pets-page">
 			<div className="page-surface page-surface--wide">
 			<header className="pets-page-header">
 				<div className="pets-page-header-text">
@@ -76,7 +72,6 @@ export function MyPetsPage() {
 					Registrar mascota
 				</Link>
 			</header>
-			<OwnerSubnav />
 
 			{loading ? <p className="muted">Cargando…</p> : null}
 			{error ? <p className="error" role="alert" aria-live="assertive">{error}</p> : null}

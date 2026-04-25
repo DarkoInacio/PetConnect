@@ -19,19 +19,29 @@ export async function fetchReviewEligibility(appointmentId, signal) {
 
 /**
  * @param {string} appointmentId
- * @param {{ rating: number, comment?: string }} body
+ * @param {{ rating: number, comment?: string, observation?: string }} body
  */
 export async function createReviewForAppointment(appointmentId, body) {
-	const { data } = await api.post(`/appointments/${appointmentId}/reviews`, body);
+	const payload = { ...body };
+	if (payload.comment != null && payload.observation == null) {
+		payload.observation = payload.comment;
+		delete payload.comment;
+	}
+	const { data } = await api.post(`/appointments/${appointmentId}/reviews`, payload);
 	return data;
 }
 
 /**
  * @param {string} reviewId
- * @param {{ rating?: number, comment?: string }} body
+ * @param {{ rating?: number, comment?: string, observation?: string }} body
  */
 export async function updateMyReview(reviewId, body) {
-	const { data } = await api.patch(`/reviews/${reviewId}`, body);
+	const payload = { ...body };
+	if (payload.comment != null && payload.observation == null) {
+		payload.observation = payload.comment;
+		delete payload.comment;
+	}
+	const { data } = await api.patch(`/reviews/${reviewId}`, payload);
 	return data;
 }
 
