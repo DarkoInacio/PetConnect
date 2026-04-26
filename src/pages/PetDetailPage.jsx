@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { getPet, markPetDeceased } from '../services/pets';
 import { PetPhoto } from '../components/PetPhoto';
 import { cn } from '../lib/utils';
+import { formatCivilDateDisplayUtc } from '../constants/chileTime';
 
 const PAGE_CLS = 'mx-auto w-full max-w-3xl px-4 sm:px-5 pt-6 pb-[max(2rem,env(safe-area-inset-bottom,0px))]';
 const BACK_LINK_CLS = 'inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline min-h-11 mb-4';
@@ -144,7 +145,7 @@ export function PetDetailPage() {
 					{pet.birthDate && (
 						<InfoField
 							label="Fecha de nacimiento"
-							value={new Date(pet.birthDate).toLocaleDateString('es-CL', { dateStyle: 'medium' })}
+							value={formatCivilDateDisplayUtc(pet.birthDate)}
 						/>
 					)}
 				</div>

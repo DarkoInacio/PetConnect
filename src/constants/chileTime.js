@@ -90,3 +90,34 @@ export function formatChileDateTimeRange(startAt, endAt) {
 		return '—';
 	}
 }
+
+/**
+ * Valor de `<input type="date" />` (YYYY-MM-DD) desde un ISO/Date del backend.
+ * Usa componentes UTC: coincide con "solo fecha" guardada sin desfase por zona local.
+ * @param {string|Date|number|undefined} isoOrDate
+ * @returns {string} YYYY-MM-DD o '' si inválido
+ */
+export function toDateInputStringUtc(isoOrDate) {
+	if (isoOrDate == null || isoOrDate === '') return '';
+	const d = new Date(isoOrDate);
+	if (Number.isNaN(d.getTime())) return '';
+	const y = d.getUTCFullYear();
+	const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(d.getUTCDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+}
+
+/**
+ * Muestra una "fecha de calendario" (p. ej. nacimiento) fiel al día guardado.
+ * @param {string|Date|number|undefined} isoOrDate
+ * @returns {string}
+ */
+export function formatCivilDateDisplayUtc(isoOrDate) {
+	if (isoOrDate == null) return '—';
+	const d = new Date(isoOrDate);
+	if (Number.isNaN(d.getTime())) return '—';
+	return new Intl.DateTimeFormat('es-CL', {
+		timeZone: 'UTC',
+		dateStyle: 'medium'
+	}).format(d);
+}

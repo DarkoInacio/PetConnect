@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { PET_SPECIES, PET_SEX } from '../constants/pets';
 import { createPet, getPet, updatePet } from '../services/pets';
 import { PetPhoto } from '../components/PetPhoto';
+import { toDateInputStringUtc } from '../constants/chileTime';
 
 const PAGE_CLS = 'mx-auto w-full max-w-2xl px-4 sm:px-5 pt-6 pb-[max(2rem,env(safe-area-inset-bottom,0px))]';
 const BACK_LINK_CLS = 'inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline min-h-11 mb-4';
@@ -13,17 +14,6 @@ const LABEL_CLS = 'text-sm font-semibold text-foreground';
 const INPUT_CLS = 'h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors';
 const SELECT_CLS = 'h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors';
 const FIELD_CLS = 'flex flex-col gap-1.5';
-
-function toInputDate(d) {
-	if (!d) return '';
-	try {
-		const x = new Date(d);
-		if (Number.isNaN(x.getTime())) return '';
-		return x.toISOString().slice(0, 10);
-	} catch {
-		return '';
-	}
-}
 
 export function PetFormPage() {
 	const { user, loading: authLoading } = useAuth();
@@ -54,7 +44,7 @@ export function PetFormPage() {
 				setName(p.name || '');
 				setSpecies(p.species || 'perro');
 				setBreed(p.breed || '');
-				setBirthDate(toInputDate(p.birthDate));
+				setBirthDate(toDateInputStringUtc(p.birthDate));
 				setSex(p.sex || 'macho');
 				setColor(p.color || '');
 			} catch (err) {

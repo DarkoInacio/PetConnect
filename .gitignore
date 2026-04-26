@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 .agents/*
+# Credenciales / URLs: no commitear (usar .env local y .env.example de plantilla)
+.env
+.env.*
+!.env.example
