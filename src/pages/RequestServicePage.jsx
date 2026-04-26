@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { hasRole } from '../lib/userRoles';
 import {
 	fetchProviderPublicProfile,
 	getProviderProfilePath,
@@ -86,7 +87,7 @@ export function RequestServicePage() {
 
 	if (authLoading) {
 		return (
-			<div className='page'>
+			<div className='mx-auto w-full max-w-[1200px] px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]'>
 				<p>Cargando…</p>
 			</div>
 		);
@@ -94,11 +95,16 @@ export function RequestServicePage() {
 
 	if (!providerId) {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
+			<div className='mx-auto w-full max-w-[1200px] px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]'>
+				<Link
+					className='inline-flex items-center gap-0.5 min-h-11 mb-2 px-0.5 py-0.5 text-primary font-semibold rounded-sm hover:text-primary/80 hover:underline'
+					to='/'
+				>
 					Volver al mapa
 				</Link>
-				<p className='error'>Falta providerId en la URL.</p>
+				<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3'>
+					Falta providerId en la URL.
+				</p>
 			</div>
 		);
 	}
@@ -113,14 +119,18 @@ export function RequestServicePage() {
 		);
 	}
 
-	if (user.role !== 'dueno') {
+	if (!hasRole(user, 'dueno')) {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
+			<div className='mx-auto w-full max-w-[1200px] px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]'>
+				<Link
+					className='inline-flex items-center gap-0.5 min-h-11 mb-2 px-0.5 py-0.5 text-primary font-semibold rounded-sm hover:text-primary/80 hover:underline'
+					to='/'
+				>
 					Volver al mapa
 				</Link>
-				<p className='error'>
-					Tu cuenta es de tipo «{user.role}». Solo dueños pueden usar solicitar servicio.
+				<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3'>
+					Necesitas una cuenta con rol de dueño (incluye cuentas que también son proveedor). Tu sesión actual no
+					tiene permiso para solicitar servicio aquí.
 				</p>
 			</div>
 		);
@@ -128,71 +138,131 @@ export function RequestServicePage() {
 
 	const profileLink = provider ? getProviderProfilePath(provider) : null;
 
+	const inputCls = 'h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors font-[inherit]';
+	const fieldCls = 'flex flex-col gap-1.5 text-sm';
+
 	return (
-		<div className='page request-service-page'>
-			<Link className='back-link' to='/'>
-				Volver al mapa
+		<div className='mx-auto w-full max-w-[600px] px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom,0px))]'>
+			<Link
+				className='inline-flex items-center gap-0.5 min-h-11 mb-3 px-0.5 py-0.5 text-primary font-semibold rounded-sm hover:text-primary/80 hover:underline'
+				to='/'
+			>
+				← Volver al mapa
 			</Link>
-			<h1>Solicitar servicio</h1>
 
-			{loadError ? <p className='error'>{loadError}</p> : null}
-			{provider ? (
-				<p>
-					Proveedor:{' '}
-					<strong>
-						{provider.name} {provider.lastName}
-					</strong>{' '}
-					({provider.providerType})
-					{profileLink ? (
-						<>
-							{' · '}
-							<Link to={profileLink}>Ver perfil</Link>
-						</>
-					) : null}
-				</p>
-			) : !loadError ? (
-				<p>Cargando datos del proveedor…</p>
-			) : null}
-
-			<form className='request-service-form' onSubmit={onSubmit}>
-				<label className='edit-field'>
-					<span>Nombre de la mascota</span>
-					<input value={petName} onChange={(e) => setPetName(e.target.value)} required />
-				</label>
-				<label className='edit-field'>
-					<span>Especie</span>
-					<input value={species} onChange={(e) => setSpecies(e.target.value)} required placeholder='perro, gato…' />
-				</label>
-				<label className='edit-field'>
-					<span>Mensaje (opcional)</span>
-					<textarea rows={3} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={500} />
-				</label>
-				<div className='edit-row-2'>
-					<label className='edit-field'>
-						<span>Inicio preferido</span>
-						<input
-							type='datetime-local'
-							value={startLocal}
-							onChange={(e) => setStartLocal(e.target.value)}
-							required
-						/>
-					</label>
-					<label className='edit-field'>
-						<span>Término preferido</span>
-						<input
-							type='datetime-local'
-							value={endLocal}
-							onChange={(e) => setEndLocal(e.target.value)}
-							required
-						/>
-					</label>
+			<div className='rounded-2xl border border-border bg-card shadow-sm overflow-hidden'>
+				<div className='px-5 py-4 border-b border-border bg-gradient-to-r from-muted/40 to-transparent dark:from-muted/20'>
+					<p className='text-[0.7rem] font-bold uppercase tracking-widest text-primary/70 mb-0.5'>Reserva</p>
+					<h1 className='text-[clamp(1.25rem,2.4vw,1.5rem)] font-bold tracking-tight text-foreground'>
+						Solicitar servicio
+					</h1>
 				</div>
-				<button type='submit' className='save-profile-btn' disabled={submitting || !provider}>
-					{submitting ? 'Enviando…' : 'Enviar solicitud'}
-				</button>
-				{submitOk ? <p className='review-success'>{submitOk}</p> : null}
-				{submitError ? <p className='error'>{submitError}</p> : null}
-			</form>
+
+				<div className='p-5 flex flex-col gap-4'>
+					{loadError ? (
+						<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive'>
+							{loadError}
+						</p>
+					) : null}
+
+					{provider ? (
+						<div className='rounded-xl border border-border bg-muted/30 px-4 py-3 flex items-center justify-between gap-3'>
+							<div>
+								<p className='text-[0.72rem] font-bold uppercase tracking-widest text-muted-foreground mb-0.5'>Proveedor</p>
+								<p className='font-semibold text-foreground text-sm'>
+									{provider.name} {provider.lastName}
+									<span className='text-muted-foreground font-normal ml-1.5 capitalize'>({provider.providerType})</span>
+								</p>
+							</div>
+							{profileLink ? (
+								<Link to={profileLink} className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors shrink-0'>
+									Ver perfil
+								</Link>
+							) : null}
+						</div>
+					) : !loadError ? (
+						<div className='flex items-center gap-2 text-muted-foreground text-sm py-2'>
+							<div className='w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin' />
+							Cargando datos del proveedor…
+						</div>
+					) : null}
+
+					<form className='flex flex-col gap-4' onSubmit={onSubmit}>
+						<div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+							<label className={fieldCls}>
+								<span className='font-medium'>Nombre de la mascota</span>
+								<input
+									className={inputCls}
+									value={petName}
+									onChange={(e) => setPetName(e.target.value)}
+									required
+									placeholder='Ej. Firulais'
+								/>
+							</label>
+							<label className={fieldCls}>
+								<span className='font-medium'>Especie</span>
+								<input
+									className={inputCls}
+									value={species}
+									onChange={(e) => setSpecies(e.target.value)}
+									required
+									placeholder='perro, gato…'
+								/>
+							</label>
+						</div>
+						<label className={fieldCls}>
+							<span className='font-medium'>Mensaje (opcional)</span>
+							<textarea
+								className='w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors'
+								rows={3}
+								value={message}
+								onChange={(e) => setMessage(e.target.value)}
+								maxLength={500}
+								placeholder='Cuéntale al proveedor sobre tu mascota o necesidades…'
+							/>
+						</label>
+						<div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+							<label className={fieldCls}>
+								<span className='font-medium'>Inicio preferido</span>
+								<input
+									className={inputCls}
+									type='datetime-local'
+									value={startLocal}
+									onChange={(e) => setStartLocal(e.target.value)}
+									required
+								/>
+							</label>
+							<label className={fieldCls}>
+								<span className='font-medium'>Término preferido</span>
+								<input
+									className={inputCls}
+									type='datetime-local'
+									value={endLocal}
+									onChange={(e) => setEndLocal(e.target.value)}
+									required
+								/>
+							</label>
+						</div>
+
+						{submitOk ? (
+							<p className='text-sm font-semibold text-emerald-700 dark:text-emerald-400'>{submitOk}</p>
+						) : null}
+						{submitError ? (
+							<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive'>
+								{submitError}
+							</p>
+						) : null}
+
+						<button
+							type='submit'
+							className='inline-flex h-11 w-full items-center justify-center rounded-xl border-0 bg-primary px-5 text-sm font-bold text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors disabled:opacity-65 disabled:cursor-not-allowed'
+							disabled={submitting || !provider}
+						>
+							{submitting ? 'Enviando solicitud…' : 'Enviar solicitud'}
+						</button>
+					</form>
+				</div>
+			</div>
 		</div>
 	);
 }

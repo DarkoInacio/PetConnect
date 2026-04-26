@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { hasRole } from '../lib/userRoles';
+import { cn } from '../lib/utils';
 
 export const OWNER_HUB = '/cuenta';
 
@@ -22,17 +23,23 @@ export function OwnerSubnav() {
 		);
 		return list;
 	}, [user]);
+
 	return (
-		<nav className="owner-subnav" aria-label="Secciones de tu cuenta" role="navigation">
-			<div className="owner-subnav__bar">
-				<ul className="owner-subnav__list">
+		<nav className="mb-5" aria-label="Secciones de tu cuenta" role="navigation">
+			<div className="border border-border rounded-xl bg-card px-1.5 pb-1.5 pt-1">
+				<ul className="flex flex-wrap gap-[0.4rem_0.45rem] list-none m-0 px-0.5 py-0.5">
 					{items.map((item) => (
-						<li key={item.to} className="owner-subnav__item">
+						<li key={item.to} className="m-0">
 							<NavLink
 								to={item.to}
 								end={item.end === true}
 								className={({ isActive }) =>
-									isActive ? 'owner-subnav__link is-active' : 'owner-subnav__link'
+									cn(
+										'inline-flex items-center justify-center min-h-[2.6rem] px-[0.95rem] py-[0.4rem] text-[0.9rem] font-semibold rounded-full no-underline transition-all',
+										isActive
+											? 'bg-primary text-primary-foreground border border-transparent shadow-sm'
+											: 'text-muted-foreground bg-muted border border-border hover:bg-accent hover:text-accent-foreground'
+									)
 								}
 							>
 								{item.label}

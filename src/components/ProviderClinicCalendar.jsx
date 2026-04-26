@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { getYmdInChile, formatTimeInChile, formatInChile } from '../constants/chileTime';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 const VIEWS = [
 	{ id: 'day', label: 'Día' },
@@ -45,9 +47,11 @@ function monthLabelES(d) {
 }
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+const swatchSlot = 'w-3 h-3 rounded-[0.2rem] border border-border bg-[color-mix(in_srgb,var(--app-primary)_12%,#f8fafc)] border-[color-mix(in_srgb,var(--app-primary)_35%,#e2e8f0)]';
+const swatchBook = 'w-3 h-3 rounded-[0.2rem] border border-[#cbd5e1] bg-white dark:bg-card dark:border-border';
+
 /**
  * @param {{ events: CalEvent[], onSlotBlock?: (id: string) => void, onSlotUnblock?: (id: string) => void, onSlotDelete?: (id: string) => void, agendaLoading?: boolean, citasLoading?: boolean, mode?: 'citas' | 'oferta' | 'unified' }} props
- * `mode`: citas = solo reservas; oferta = solo tramos; unified = leyenda doble (legacy).
  */
 export function ProviderClinicCalendar({
 	events,
@@ -126,33 +130,53 @@ export function ProviderClinicCalendar({
 	}
 
 	return (
-		<div className="clinic-calendar">
-			<div className="clinic-calendar__toolbar">
-				<div className="clinic-calendar__view-tabs" role="tablist" aria-label="Vista de calendario">
+		<div className="my-3 mb-5">
+			{/* Toolbar */}
+			<div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+				<div className="flex flex-wrap gap-1" role="tablist" aria-label="Vista de calendario">
 					{VIEWS.map((v) => (
 						<button
 							key={v.id}
 							type="button"
 							role="tab"
 							aria-selected={view === v.id}
-							className={view === v.id ? 'clinic-calendar__tab is-active' : 'clinic-calendar__tab'}
+							className={cn(
+								'cursor-pointer rounded-[0.4rem] border px-3 py-1.5 font-[inherit] text-[0.9rem] transition-colors',
+								view === v.id
+									? 'border-transparent bg-primary text-primary-foreground'
+									: 'border-border bg-white text-foreground hover:bg-muted dark:bg-card'
+							)}
 							onClick={() => setView(/** @type {any} */ (v.id))}
 						>
 							{v.label}
 						</button>
 					))}
 				</div>
-				<div className="clinic-calendar__nav">
-					<button type="button" className="btn-sm" onClick={goPrev} aria-label="Anterior">
+				<div className="flex flex-wrap items-center gap-1.5">
+					<button
+						type="button"
+						className="cursor-pointer rounded-lg border border-border bg-white px-2.5 py-1 text-[0.82rem] text-foreground hover:bg-muted dark:bg-card"
+						onClick={goPrev}
+						aria-label="Anterior"
+					>
 						‹
 					</button>
-					<button type="button" className="btn-sm" onClick={goToday}>
+					<button
+						type="button"
+						className="cursor-pointer rounded-lg border border-border bg-white px-2.5 py-1 text-[0.82rem] text-foreground hover:bg-muted dark:bg-card"
+						onClick={goToday}
+					>
 						Hoy
 					</button>
-					<button type="button" className="btn-sm" onClick={goNext} aria-label="Siguiente">
+					<button
+						type="button"
+						className="cursor-pointer rounded-lg border border-border bg-white px-2.5 py-1 text-[0.82rem] text-foreground hover:bg-muted dark:bg-card"
+						onClick={goNext}
+						aria-label="Siguiente"
+					>
 						›
 					</button>
-					<span className="clinic-calendar__title">
+					<span className="ml-2 text-[0.95rem] font-semibold text-foreground">
 						{view === 'day' && formatInChile(anchor)}
 						{view === 'week' &&
 							`Semana del ${pad2(weekStart.getDate())} ${new Intl.DateTimeFormat('es-CL', { month: 'long' }).format(weekStart)} ${weekStart.getFullYear()}`}
@@ -161,62 +185,65 @@ export function ProviderClinicCalendar({
 				</div>
 			</div>
 
+			{/* Loading / empty messages */}
 			{mode === 'citas' && citasLoading ? (
-				<p className="muted" style={{ margin: '0.5rem 0' }}>Cargando reservas…</p>
+				<p className="my-2 text-muted-foreground">Cargando reservas…</p>
 			) : null}
 			{mode === 'oferta' && agendaLoading ? (
-				<p className="muted" style={{ margin: '0.5rem 0' }}>Cargando tramos ofrecidos…</p>
+				<p className="my-2 text-muted-foreground">Cargando tramos ofrecidos…</p>
 			) : null}
 			{mode === 'unified' && agendaLoading ? (
-				<p className="muted" style={{ margin: '0.5rem 0' }}>Cargando oferta (tramos) y citas…</p>
+				<p className="my-2 text-muted-foreground">Cargando oferta (tramos) y citas…</p>
 			) : null}
 			{!citasLoading && mode === 'citas' && events.length === 0 ? (
-				<p className="muted" style={{ margin: '0.5rem 0' }}>
+				<p className="my-2 text-muted-foreground">
 					Sin citas con cliente que mostrar (estados cancelados se ocultan). Las confirmadas o pendientes
 					aparecerán con nombre y línea.
 				</p>
 			) : null}
 			{!agendaLoading && mode === 'oferta' && events.length === 0 ? (
-				<p className="muted" style={{ margin: '0.5rem 0' }}>
-					<strong>Sin tramos ofrecidos</strong> a futuro con el filtro actual. Crea o publica la línea de atención,
-					o ajusta el &quot;rellenar agenda&quot; (pestaña Citas → mantenimiento) si aplica.
+				<p className="my-2 text-muted-foreground">
+					<strong>Sin tramos ofrecidos</strong> a futuro con el filtro actual. Crea o publica la línea de
+					atención, o ajusta el &quot;rellenar agenda&quot; (pestaña Citas → mantenimiento) si aplica.
 				</p>
 			) : null}
 			{!agendaLoading && mode === 'unified' && events.length === 0 ? (
-				<p className="muted" style={{ margin: '0.5rem 0' }}>
-					Aún no hay nada en el calendario: <strong>sin tramos ofrecidos</strong> a futuro o <strong>sin citas</strong>{' '}
-					(confirmadas / pendientes). Crea una línea de atención y, si aplica, usa el mantenimiento de agenda
-					(rellenar) debajo.
+				<p className="my-2 text-muted-foreground">
+					Aún no hay nada en el calendario: <strong>sin tramos ofrecidos</strong> a futuro o{' '}
+					<strong>sin citas</strong> (confirmadas / pendientes). Crea una línea de atención y, si aplica, usa
+					el mantenimiento de agenda (rellenar) debajo.
 				</p>
 			) : null}
+
+			{/* Legend */}
 			{mode === 'citas' && !citasLoading && events.length > 0 ? (
-				<p className="clinic-calendar__legend clinic-calendar__legend--single">
-					<span className="clinic-calendar__legend__item">
-						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--book" />
+				<p className="mt-1.5 mb-0.5 flex flex-wrap items-center gap-2 text-[0.78rem] text-muted-foreground">
+					<span className="inline-flex items-center gap-1.5">
+						<span className={swatchBook} />
 						Reservas (dueño y mascota)
 					</span>
 				</p>
 			) : null}
 			{mode === 'oferta' && !agendaLoading && events.length > 0 ? (
-				<p className="clinic-calendar__legend clinic-calendar__legend--single">
-					<span className="clinic-calendar__legend__item">
-						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--slot" />
+				<p className="mt-1.5 mb-0.5 flex flex-wrap items-center gap-2 text-[0.78rem] text-muted-foreground">
+					<span className="inline-flex items-center gap-1.5">
+						<span className={swatchSlot} />
 						Tramo ofrecido (puedes Cerrar, Abrir o Quitar)
 					</span>
 				</p>
 			) : null}
 			{mode === 'unified' && !agendaLoading && events.length > 0 ? (
-				<p className="clinic-calendar__legend">
-					<span className="clinic-calendar__legend__item">
-						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--book" /> Citas
+				<p className="mt-1.5 mb-0.5 flex flex-wrap items-center gap-3 text-[0.78rem] text-muted-foreground">
+					<span className="inline-flex items-center gap-1.5">
+						<span className={swatchBook} /> Citas
 					</span>
-					<span className="clinic-calendar__legend__item">
-						<span className="clinic-calendar__legend__swatch clinic-calendar__legend__swatch--slot" /> Oferta
-						(turno aún reservable)
+					<span className="inline-flex items-center gap-1.5">
+						<span className={swatchSlot} /> Oferta (turno aún reservable)
 					</span>
 				</p>
 			) : null}
 
+			{/* Day view */}
 			{view === 'day' && (
 				<DayList
 					ymd={selectedYmd}
@@ -229,23 +256,32 @@ export function ProviderClinicCalendar({
 				/>
 			)}
 
+			{/* Week view */}
 			{view === 'week' && (
-				<div className="clinic-calendar__grid clinic-calendar__grid--week">
+				<div className="grid grid-cols-7 gap-1.5 max-[900px]:grid-cols-1">
 					{weekDays.map((d) => {
 						const ymd = ymdForGrid(d);
 						const isToday = ymd === todayYmd;
 						const list = byYmd[ymd] || [];
 						return (
-							<div key={ymd} className={isToday ? 'clinic-calendar__day is-today' : 'clinic-calendar__day'}>
-								<div className="clinic-calendar__dayhead">
-									<small className="muted">
+							<div
+								key={ymd}
+								className={cn(
+									'min-h-24 rounded-[0.4rem] border bg-[#fafbfc] p-1.5 dark:bg-card',
+									isToday
+										? 'border-primary shadow-[0_0_0_1px_rgba(13,148,136,0.25)]'
+										: 'border-border'
+								)}
+							>
+								<div className="mb-1.5">
+									<small className="text-muted-foreground">
 										{WEEKDAYS[(d.getDay() + 6) % 7]}{' '}
 										<strong>{d.getDate()}</strong>
 									</small>
 								</div>
-								<ul className="clinic-calendar__events">
+								<ul className="m-0 list-none p-0">
 									{list.length === 0 ? (
-										<li className="clinic-calendar__empty">—</li>
+										<li className="text-[0.8rem] text-muted-foreground">—</li>
 									) : (
 										list.map((e) => (
 											<li key={e.id}>
@@ -266,17 +302,18 @@ export function ProviderClinicCalendar({
 				</div>
 			)}
 
+			{/* Month view */}
 			{view === 'month' && (
-				<div className="clinic-calendar__grid clinic-calendar__grid--month" role="grid" aria-label="Vista mensual">
-					<div className="clinic-calendar__month-cols" aria-hidden>
+				<div className="mt-2" role="grid" aria-label="Vista mensual">
+					<div className="mb-1 grid grid-cols-7 gap-1" aria-hidden>
 						{WEEKDAYS.map((d) => (
-							<div key={d} className="clinic-calendar__dow">
+							<div key={d} className="text-[0.7rem] font-semibold uppercase text-muted-foreground">
 								{d}
 							</div>
 						))}
 					</div>
 					{monthMatrix.weeks.map((row, ri) => (
-						<div key={ri} className="clinic-calendar__mweek">
+						<div key={ri} className="mb-1 grid grid-cols-7 gap-1">
 							{row.map((d) => {
 								const inMonth = d.getMonth() === monthMatrix.mon;
 								const ymd = ymdForGrid(d);
@@ -285,20 +322,23 @@ export function ProviderClinicCalendar({
 								return (
 									<div
 										key={ymd}
-										className={
-											'clinic-calendar__mcell' +
-											(!inMonth ? ' is-faint' : '') +
-											(isToday ? ' is-today' : '')
-										}
+										className={cn(
+											'min-h-[4.5rem] rounded-[0.3rem] border p-[0.2rem_0.25rem] text-[0.72rem] bg-white dark:bg-card',
+											isToday ? 'border-primary' : 'border-border',
+											!inMonth && 'opacity-40'
+										)}
 									>
-										<div className="clinic-calendar__mdate">{d.getDate()}</div>
-										<ul className="clinic-calendar__mitems">
+										<div className="mb-0.5 font-bold">{d.getDate()}</div>
+										<ul className="m-0 list-none p-0">
 											{list.map((e) => (
 												<li
 													key={e.id}
-													className={
-														e.kind === 'slot' ? 'clinic-calendar__mchip clinic-calendar__mchip--slot' : 'clinic-calendar__mchip'
-													}
+													className={cn(
+														'overflow-hidden text-ellipsis whitespace-nowrap py-0.5',
+														e.kind === 'slot'
+															? 'bg-[color-mix(in_srgb,var(--app-primary)_10%,#f8fafc)] border border-dashed border-[color-mix(in_srgb,var(--app-primary)_30%,#e2e8f0)] text-[0.68rem] rounded-sm px-0.5'
+															: ''
+													)}
 													title={(e.client || '') + ' — ' + (e.line || '')}
 												>
 													{formatTimeInChile(e.startAt)}{' '}
@@ -310,7 +350,7 @@ export function ProviderClinicCalendar({
 												</li>
 											))}
 											{(byYmd[ymd] || []).length > 3 ? (
-												<li className="muted" style={{ fontSize: '0.75rem' }}>
+												<li className="text-[0.75rem] text-muted-foreground">
 													+{(byYmd[ymd] || []).length - 3} más
 												</li>
 											) : null}
@@ -334,14 +374,14 @@ function DayList({ ymd, byYmd, todayYmd, calendarMode, onSlotBlock, onSlotUnbloc
 	if (list.length === 0) {
 		if (calendarMode === 'citas') {
 			return (
-				<p className="muted" style={{ margin: 0 }}>
+				<p className="m-0 text-muted-foreground">
 					{ymd === todayYmd ? 'Sin reservas este día.' : 'Sin reservas el ' + ymd + '.'}
 				</p>
 			);
 		}
 		if (calendarMode === 'oferta') {
 			return (
-				<p className="muted" style={{ margin: 0 }}>
+				<p className="m-0 text-muted-foreground">
 					{ymd === todayYmd
 						? 'Sin tramos ofrecidos este día (revisa otra semana o el filtro de línea).'
 						: 'Sin oferta el ' + ymd + '.'}
@@ -349,7 +389,7 @@ function DayList({ ymd, byYmd, todayYmd, calendarMode, onSlotBlock, onSlotUnbloc
 			);
 		}
 		return (
-			<p className="muted" style={{ margin: 0 }}>
+			<p className="m-0 text-muted-foreground">
 				{ymd === todayYmd
 					? 'Nada en este día (ni oferta de tramo ni cita con cliente).'
 					: 'No hay ítems el día ' + ymd + '.'}
@@ -357,9 +397,9 @@ function DayList({ ymd, byYmd, todayYmd, calendarMode, onSlotBlock, onSlotUnbloc
 		);
 	}
 	return (
-		<ul className="clinic-calendar__fullday" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+		<ul className="m-0 list-none p-0">
 			{list.map((e) => (
-				<li key={e.id} style={{ marginBottom: 10 }}>
+				<li key={e.id} className="mb-2.5">
 					<EventCard
 						e={e}
 						detailed
@@ -380,29 +420,48 @@ function EventCard({ e, detailed, onSlotBlock, onSlotUnblock, onSlotDelete }) {
 	if (detailed === false) return null;
 	const isSlot = e.kind === 'slot';
 	return (
-		<div className={isSlot ? 'clinic-calendar__card clinic-calendar__card--slot' : 'clinic-calendar__card'}>
-			<div className="clinic-calendar__time">
+		<div
+			className={cn(
+				'mb-1.5 rounded-[0.35rem] border p-[0.3rem_0.35rem]',
+				isSlot
+					? 'border-dashed border-[color-mix(in_srgb,var(--app-primary)_32%,#cbd5e1)] bg-[color-mix(in_srgb,var(--app-primary)_7%,#fff)] dark:bg-primary/10'
+					: 'border-border bg-white dark:bg-card'
+			)}
+		>
+			<div className="text-[0.78rem] font-semibold text-foreground">
 				{formatTimeInChile(e.startAt)} – {formatTimeInChile(e.endAt)}
 			</div>
-			<div className="clinic-calendar__line">{e.line}</div>
-			<div className="clinic-calendar__client">
-				{isSlot ? <em className="clinic-calendar__oferta">{e.client}</em> : e.client}
+			<div className="text-[0.8rem] font-semibold text-primary">{e.line}</div>
+			<div className="text-[0.8rem] text-foreground">
+				{isSlot ? <em className="not-italic text-muted-foreground">{e.client}</em> : e.client}
 			</div>
-			<small className="muted">{e.status}</small>
+			<small className="text-muted-foreground">{e.status}</small>
 			{isSlot && e.slotId && (onSlotBlock || onSlotUnblock || onSlotDelete) ? (
-				<div className="clinic-calendar__slot-actions" role="group" aria-label="Gestionar tramo">
+				<div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Gestionar tramo">
 					{e.slotStatus === 'available' && onSlotBlock ? (
-						<button type="button" className="btn-sm" onClick={() => onSlotBlock(e.slotId)}>
+						<button
+							type="button"
+							className="cursor-pointer rounded-lg border border-border bg-white px-2.5 py-1 text-[0.82rem] text-foreground hover:bg-muted dark:bg-card"
+							onClick={() => onSlotBlock(e.slotId)}
+						>
 							Cerrar
 						</button>
 					) : null}
 					{e.slotStatus === 'blocked' && onSlotUnblock ? (
-						<button type="button" className="btn-sm" onClick={() => onSlotUnblock(e.slotId)}>
+						<button
+							type="button"
+							className="cursor-pointer rounded-lg border border-border bg-white px-2.5 py-1 text-[0.82rem] text-foreground hover:bg-muted dark:bg-card"
+							onClick={() => onSlotUnblock(e.slotId)}
+						>
 							Abrir
 						</button>
 					) : null}
 					{onSlotDelete ? (
-						<button type="button" className="btn-reject" onClick={() => onSlotDelete(e.slotId)}>
+						<button
+							type="button"
+							className="cursor-pointer rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[0.82rem] font-bold text-red-800 hover:bg-red-50 dark:bg-transparent dark:border-red-800 dark:text-red-300"
+							onClick={() => onSlotDelete(e.slotId)}
+						>
 							Quitar
 						</button>
 					) : null}

@@ -8,8 +8,9 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="description" content="PetConnect: conecta clínicas veterinarias con dueños. Reservas, mapa y ficha de salud de tu mascota." />
-    <meta name="color-scheme" content="light" />
-    <meta name="theme-color" content="#0f7668" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0f7668" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d9488" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,6 +19,16 @@
       rel="stylesheet"
     />
     <title>PetConnect</title>
+    <!-- Aplica el tema guardado antes del primer paint para evitar flash -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('petconnect-theme');
+          var resolved = t === 'dark' ? 'dark' : t === 'light' ? 'light' : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.classList.add(resolved);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

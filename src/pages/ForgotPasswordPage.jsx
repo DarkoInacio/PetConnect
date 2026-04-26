@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Mail, PawPrint } from 'lucide-react';
 import { forgotPassword } from '../services/authForms';
+import { Button } from '@/components/ui/button';
 
 export function ForgotPasswordPage() {
 	const [email, setEmail] = useState('');
@@ -24,31 +26,87 @@ export function ForgotPasswordPage() {
 	}
 
 	return (
-		<div className="page auth-page">
-			<div className="auth-page-stack">
-				<Link className="back-link" to="/login">
+		<div className="flex flex-col items-center justify-center min-h-[min(calc(100dvh-3.25rem),900px)] py-8 px-4">
+			<div className="w-full max-w-sm flex flex-col gap-3">
+				<Link
+					className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline min-h-11 mb-4"
+					to="/login"
+				>
 					← Volver al login
 				</Link>
-				<section className="auth-card" aria-labelledby="forgot-title">
-					<div className="auth-card-eyebrow">Acceso</div>
-					<h1 id="forgot-title">Recuperar contraseña</h1>
-					<p className="muted auth-card-lead">Te enviaremos un enlace para restablecerla (revisa carpeta de spam).</p>
-					<form className="auth-form" onSubmit={onSubmit}>
-					<label className='auth-field'>
-						<span>Correo</span>
-						<input type='email' value={email} onChange={(e) => setEmail(e.target.value)} required />
-					</label>
-					<button type='submit' className='auth-submit' disabled={submitting}>
-						{submitting ? 'Enviando…' : 'Enviar instrucciones'}
-					</button>
-					{message ? <p className="review-success">{message}</p> : null}
-					{error ? (
-						<p className="error" role="alert" aria-live="assertive">
-							{error}
+				<section
+					className="w-full rounded-2xl border border-t-4 border-t-primary border-border bg-card shadow-lg px-6 py-8 sm:px-8"
+					aria-labelledby="forgot-title"
+				>
+					<div className="flex items-center gap-2 mb-2">
+						<PawPrint className="size-4 text-primary" aria-hidden="true" />
+						<span className="text-[0.7rem] font-bold uppercase tracking-widest text-primary/70">
+							Acceso
+						</span>
+					</div>
+					<h1
+						id="forgot-title"
+						className="text-[clamp(1.4rem,2.5vw,1.75rem)] font-bold tracking-tight text-foreground mb-1.5"
+					>
+						Recuperar contraseña
+					</h1>
+					<p className="text-sm text-muted-foreground mb-6">
+						Te enviaremos un enlace para restablecerla. Revisa también tu carpeta de spam.
+					</p>
+					<form className="flex flex-col gap-4" onSubmit={onSubmit}>
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor="forgot-email" className="text-sm font-semibold text-foreground">
+								Correo electrónico
+							</label>
+							<div className="relative">
+								<Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" aria-hidden="true" />
+								<input
+									id="forgot-email"
+									className="h-11 w-full rounded-xl border border-input bg-background pl-9 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+									type="email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									required
+								/>
+							</div>
+						</div>
+
+						{message ? (
+							<p
+								className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 px-3.5 py-3 text-sm text-emerald-700 dark:text-emerald-400"
+								role="status"
+								aria-live="polite"
+							>
+								{message}
+							</p>
+						) : null}
+
+						{error ? (
+							<p
+								className="rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive"
+								role="alert"
+								aria-live="assertive"
+							>
+								{error}
+							</p>
+						) : null}
+
+						<Button
+							type="submit"
+							className="h-11 w-full rounded-xl font-bold"
+							disabled={submitting}
+						>
+							{submitting ? 'Enviando…' : 'Enviar instrucciones'}
+						</Button>
+
+						<p className="text-sm text-center text-muted-foreground">
+							¿Recuerdas tu contraseña?{' '}
+							<Link to="/login" className="text-sm text-primary font-semibold hover:underline">
+								Iniciar sesión
+							</Link>
 						</p>
-					) : null}
 					</form>
-			</section>
+				</section>
 			</div>
 		</div>
 	);

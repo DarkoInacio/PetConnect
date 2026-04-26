@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { cn } from '../lib/utils';
+import { CalendarDays, Stethoscope, Star, Settings2, ListChecks, LayoutGrid } from 'lucide-react';
 import {
 	confirmAppointmentAsProvider,
 	cancelAppointmentAsProvider,
@@ -62,7 +64,6 @@ function toYmdLocal(d) {
 function buildSlotsListParams(agFrom, agTo) {
 	const f = agFrom && String(agFrom).trim() ? String(agFrom).trim() : '';
 	const t = agTo && String(agTo).trim() ? String(agTo).trim() : '';
-	/** Sólo bloques que aun no comenzaron, salvo rango; el backend aplica días en zona Chile. */
 	const p = { onlyFuture: '1' };
 	if (f || t) {
 		p.fromYmd = f || t;
@@ -93,7 +94,6 @@ export function ProviderDashboardPage() {
 	const [loadingBookings, setLoadingBookings] = useState(true);
 	const [loadingSlots, setLoadingSlots] = useState(true);
 	const [error, setError] = useState('');
-	/** Rango solo para "Permitir otra vez" (vaciar recuerdo de tramos eliminados a mano) */
 	const [omitsFrom, setOmitsFrom] = useState(() => toYmdLocal(new Date()));
 	const [omitsTo, setOmitsTo] = useState(() => {
 		const d = new Date();
@@ -117,9 +117,7 @@ export function ProviderDashboardPage() {
 	const [newLinePrice, setNewLinePrice] = useState('');
 	const [clinicLineMsg, setClinicLineMsg] = useState('');
 	const didAutoAgenda = useRef(false);
-	/** Pestañas de agenda: reservas vs tramos a la venta (solo clínica). */
 	const [vetAgendaTab, setVetAgendaTab] = useState(/** @type {'citas' | 'oferta'} */ ('citas'));
-	/** Filtro de línea en pestaña oferta: '' = todas. */
 	const [ofertaLineFilter, setOfertaLineFilter] = useState('');
 
 	const calendarEvents = useMemo(() => {
@@ -136,14 +134,12 @@ export function ProviderDashboardPage() {
 		return list.filter((s) => getSlotClinicServiceId(s) === want);
 	}, [slots, ofertaLineFilter, user?.providerType]);
 
-	/** Tramos ofrecidos para el calendario (misma franja que citas, sin mezclar). */
 	const ofertaCalEvents = useMemo(() => {
 		return filteredOfertaSlots
 			.map((s) => mapAgendaSlotToCalEvent(s))
 			.sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
 	}, [filteredOfertaSlots]);
 
-	/** Añade tramos en el rango; por defecto desde hoy unas 8 semanas. */
 	const fillAgendaRange = useCallback(
 		/** @param {number} weekCount */
 		async (weekCount = 8) => {
@@ -254,7 +250,6 @@ export function ProviderDashboardPage() {
 		return () => c.abort();
 	}, [clientReviewRow]);
 
-	/** Rellena la bandeja de tramos (sin botón: una vez al cargar; también al añadir línea). */
 	useEffect(() => {
 		if (authLoading || !user || user?.providerType !== 'veterinaria' || didAutoAgenda.current) return;
 		didAutoAgenda.current = true;
@@ -276,13 +271,12 @@ export function ProviderDashboardPage() {
 		return () => {
 			alive = false;
 		};
-		// Intencional: solo al montar el panel; no depende del filtro de fechas
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [authLoading, user, fillAgendaRange]);
 
 	if (authLoading) {
 		return (
-			<div className='page'>
+			<div className='mx-auto w-full max-w-[1200px] px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]'>
 				<p>Cargando…</p>
 			</div>
 		);
@@ -294,11 +288,16 @@ export function ProviderDashboardPage() {
 
 	if (!hasRole(user, 'proveedor')) {
 		return (
-			<div className='page'>
-				<Link className='back-link' to='/'>
+			<div className='mx-auto w-full max-w-[1200px] px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]'>
+				<Link
+					className='inline-flex items-center gap-0.5 min-h-11 mb-2 px-0.5 py-0.5 text-primary font-semibold rounded-sm hover:text-primary/80 hover:underline'
+					to='/'
+				>
 					Inicio
 				</Link>
-				<p className='error'>Solo cuentas de servicio (veterinario, paseo o cuidado).</p>
+				<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3'>
+					Solo cuentas de servicio (veterinario, paseo o cuidado).
+				</p>
 			</div>
 		);
 	}
@@ -428,7 +427,6 @@ export function ProviderDashboardPage() {
 			await confirmAppointmentAsProvider(id);
 			setBookingActionMsg('Actualizado correctamente.');
 			await reloadBookings();
-			/* Al confirmar, refrescar bloques: el hueco no vuelve a ofrecerse (y la lista queda alineada). */
 			if (user?.providerType === 'veterinaria') {
 				const s = await listMyAgendaSlots(undefined, buildSlotsListParams('', ''));
 				setSlots(Array.isArray(s.slots) ? s.slots : []);
@@ -600,353 +598,441 @@ export function ProviderDashboardPage() {
 		}
 	}
 
+	const inputCls = 'h-10 w-full rounded-xl border border-input bg-background px-3 py-2.5 font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
 	return (
-		<div className="page provider-dashboard">
-			<Link className="back-link" to="/">
+		<div className='mx-auto w-full max-w-[1200px] px-4 py-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]'>
+			<Link
+				className='inline-flex items-center gap-0.5 min-h-11 mb-2 px-0.5 py-0.5 text-primary font-semibold rounded-sm hover:text-primary/80 hover:underline'
+				to='/'
+			>
 				← Volver al inicio
 			</Link>
-			<div className="page-surface page-surface--wide page-surface--provider-dash">
-				<header className="provider-dash-header">
-					<div className="provider-dash-header__text">
-						<h1 id="provider-dashboard-title">{isVet ? 'Inicio de clínica' : 'Panel de servicios'}</h1>
-						<p className="provider-dash-header__lede">
-							{isVet
-								? 'Líneas de atención (cada prof. o servicio) y tramos sueltos que el cliente reserva en línea.'
-								: 'Gestiona solicitudes de paseo o cuidado y el estado de tus reservas.'}
-						</p>
-					</div>
-					<div className="provider-dash-header__actions" aria-labelledby="provider-dashboard-title">
-						{user.status === 'en_revision' ? (
-							<span className="provider-dash-badge" title="Tu perfil aún no está publicado en el mapa">
-								En revisión
-							</span>
-						) : null}
-						<Link className="provider-dash-config-link" to="/proveedor/mi-perfil">
-							{isVet ? 'Configuración de la clínica' : 'Configurar perfil y tarifas'}
-						</Link>
-						<Link className="provider-dash-secondary-link" to="/proveedor/mis-resenas">
-							Reseñas recibidas
-						</Link>
-					</div>
-				</header>
+		<div className='mx-auto w-full max-w-4xl rounded-2xl border border-border bg-card shadow-sm mb-4 overflow-hidden'>
+			<div className='flex items-center gap-2 px-5 py-4 border-b border-border bg-gradient-to-r from-muted/40 to-transparent dark:from-muted/20'>
+				<LayoutGrid className='w-4 h-4 text-primary/70 shrink-0' />
+				<span className='text-[0.7rem] font-bold uppercase tracking-widest text-primary/70'>
+					{isVet ? 'Veterinaria' : 'Proveedor'}
+				</span>
 			</div>
-
-			<div className="app-form provider-dashboard__flow">
-			<section className="edit-fieldset book-section provider-dash-section">
-				<h2 id="reservas-calendario">
-					{isVet ? 'Reservas y calendario' : 'Reservas'}
-				</h2>
-				{isVet ? (
-					<>
-						<div
-							className="vet-agenda__tabs"
-							role="tablist"
-							aria-label="Vista de agenda: citas o tramos ofrecidos"
+			<header className='flex flex-wrap items-start justify-between gap-4 gap-x-6 px-5 py-4'>
+				<div className='min-w-[min(100%,22rem)] flex-1'>
+					<h1
+						id='provider-dashboard-title'
+						className='text-[clamp(1.3rem,2.2vw,1.6rem)] font-bold tracking-tight text-foreground mb-1.5'
+					>
+						{isVet ? 'Inicio de clínica' : 'Panel de servicios'}
+					</h1>
+					<p className='m-0 text-[0.95rem] leading-snug text-muted-foreground max-w-[42rem]'>
+						{isVet
+							? 'Líneas de atención (cada prof. o servicio) y tramos sueltos que el cliente reserva en línea.'
+							: 'Gestiona solicitudes de paseo o cuidado y el estado de tus reservas.'}
+					</p>
+				</div>
+				<div className='flex flex-wrap items-center gap-2 shrink-0' aria-labelledby='provider-dashboard-title'>
+					{user.status === 'en_revision' ? (
+						<span
+							className='inline-flex items-center rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+							title='Tu perfil aún no está publicado en el mapa'
 						>
-							<button
-								type="button"
-								role="tab"
-								id="tab-vet-citas"
-								aria-controls="panel-vet-citas"
-								aria-selected={vetAgendaTab === 'citas'}
-								className="vet-agenda__tab"
-								onClick={() => setVetAgendaTab('citas')}
-							>
-								Citas y reservas
-							</button>
-							<button
-								type="button"
-								role="tab"
-								id="tab-vet-oferta"
-								aria-controls="panel-vet-oferta"
-								aria-selected={vetAgendaTab === 'oferta'}
-								className="vet-agenda__tab"
-								onClick={() => setVetAgendaTab('oferta')}
-							>
-								Tramos ofrecidos
-							</button>
-						</div>
+							En revisión
+						</span>
+					) : null}
+					<Link
+						className='inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground no-underline hover:bg-primary/90 transition-colors gap-1.5'
+						to='/proveedor/mi-perfil'
+					>
+						<Settings2 className='w-4 h-4' />
+						{isVet ? 'Configuración' : 'Perfil y tarifas'}
+					</Link>
+					<Link
+						className='inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground no-underline hover:bg-muted transition-colors gap-1.5'
+						to='/proveedor/mis-resenas'
+					>
+						<Star className='w-4 h-4' />
+						Reseñas
+					</Link>
+				</div>
+			</header>
+		</div>
 
-						{vetAgendaTab === 'citas' ? (
-							<div id="panel-vet-citas" role="tabpanel" aria-labelledby="tab-vet-citas">
-								<p className="hint muted" style={{ marginTop: 0, maxWidth: '50rem' }}>
+			<div className='flex flex-col gap-4 min-w-0 max-w-full'>
+			<section className='rounded-2xl border border-border bg-card shadow-sm mt-1 overflow-hidden'>
+				<div className='flex items-center gap-2 px-5 py-4 border-b border-border bg-gradient-to-r from-muted/40 to-transparent dark:from-muted/20'>
+					<CalendarDays className='w-4 h-4 text-primary/70 shrink-0' />
+					<h2 className='text-base font-bold text-foreground flex items-center gap-2'>
+						{isVet ? 'Reservas y calendario' : 'Reservas'}
+					</h2>
+				</div>
+				<div className='p-4 sm:p-5'>
+					{isVet ? (
+						<>
+							<div
+								className='flex flex-wrap gap-1.5 mt-0.5 mb-4 p-1 rounded-[0.55rem] border border-border bg-muted/40 dark:bg-muted'
+								role='tablist'
+								aria-label='Vista de agenda: citas o tramos ofrecidos'
+							>
+								<button
+									type='button'
+									role='tab'
+									id='tab-vet-citas'
+									aria-controls='panel-vet-citas'
+									aria-selected={vetAgendaTab === 'citas'}
+									className='rounded-[0.4rem] border border-transparent bg-transparent px-3.5 py-2 text-[0.9rem] font-semibold text-muted-foreground cursor-pointer transition-colors hover:bg-white hover:text-foreground dark:hover:bg-card aria-selected:bg-white aria-selected:text-primary aria-selected:border-primary/30 aria-selected:shadow-sm dark:aria-selected:bg-card'
+									onClick={() => setVetAgendaTab('citas')}
+								>
+									Citas y reservas
+								</button>
+								<button
+									type='button'
+									role='tab'
+									id='tab-vet-oferta'
+									aria-controls='panel-vet-oferta'
+									aria-selected={vetAgendaTab === 'oferta'}
+									className='rounded-[0.4rem] border border-transparent bg-transparent px-3.5 py-2 text-[0.9rem] font-semibold text-muted-foreground cursor-pointer transition-colors hover:bg-white hover:text-foreground dark:hover:bg-card aria-selected:bg-white aria-selected:text-primary aria-selected:border-primary/30 aria-selected:shadow-sm dark:aria-selected:bg-card'
+									onClick={() => setVetAgendaTab('oferta')}
+								>
+									Tramos ofrecidos
+								</button>
+							</div>
+
+							{vetAgendaTab === 'citas' ? (
+								<div id='panel-vet-citas' role='tabpanel' aria-labelledby='tab-vet-citas'>
+								<p className='text-sm mb-2.5 text-muted-foreground mt-0 max-w-[50rem]'>
 									<strong>Calendario (hora Chile):</strong> solo <strong>reservas con dueño y mascota</strong>
-									(confirmadas o pendientes). La tabla de abajo sirve para confirmar, cancelar, completar o
-									ir a ficha. Para ver u operar <strong>tramos sueltos aún a la venta</strong>, abre la
-									pestaña <em>Tramos ofrecidos</em>.
-								</p>
-								<ProviderClinicCalendar
-									key="vet-citas"
-									events={calendarEvents}
-									mode="citas"
-									citasLoading={loadingBookings}
-								/>
-							</div>
-						) : (
-							<div id="panel-vet-oferta" role="tabpanel" aria-labelledby="tab-vet-oferta">
-								<p className="hint muted" style={{ marginTop: 0, maxWidth: '50rem' }}>
-									<strong>Oferta a futuro:</strong> tramos aún reservables (libre o &quot;cerrado&quot; en
-									app), ordenados en día / semana / mes. Elige <strong>una línea</strong> o déjalo en
-									<strong> todas</strong>. Cada bloque: Cerrar, Abrir o Quitar. Para rellenar fechas, usa
-									<strong> Mantenimiento</strong> en la otra pestaña.
-								</p>
-								<div className="vet-oferta-linebar">
-									<span className="vet-oferta-linebar__label">Línea de atención</span>
-									<div className="vet-oferta-linebar__chips">
-										<button
-											type="button"
-											className={'vet-oferta-linebar__chip' + (ofertaLineFilter === '' ? ' is-active' : '')}
-											aria-pressed={ofertaLineFilter === ''}
-											onClick={() => setOfertaLineFilter('')}
-										>
-											Todas las líneas
-										</button>
-										{clinicLines
-											.filter((l) => l.active !== false)
-											.map((l) => {
-												const id = String(l._id != null ? l._id : l.id != null ? l.id : '');
-												if (!id) return null;
-												return (
-													<button
-														key={id}
-														type="button"
-														className={
-															'vet-oferta-linebar__chip' +
-															(ofertaLineFilter === id ? ' is-active' : '')
-														}
-														aria-pressed={ofertaLineFilter === id}
-														onClick={() => setOfertaLineFilter(id)}
-													>
-														{l.displayName || 'Línea'}
-													</button>
-												);
-											})}
-									</div>
-									<span className="vet-oferta-linebar__count" aria-live="polite">
-										{filteredOfertaSlots.length} tramo
-										{filteredOfertaSlots.length === 1 ? '' : 's'}
-									</span>
+										(confirmadas o pendientes). La tabla de abajo sirve para confirmar, cancelar, completar o
+										ir a ficha. Para ver u operar <strong>tramos sueltos aún a la venta</strong>, abre la
+										pestaña <em>Tramos ofrecidos</em>.
+									</p>
+									<ProviderClinicCalendar
+										key='vet-citas'
+										events={calendarEvents}
+										mode='citas'
+										citasLoading={loadingBookings}
+									/>
 								</div>
-								<ProviderClinicCalendar
-									key="vet-oferta"
-									events={ofertaCalEvents}
-									mode="oferta"
-									agendaLoading={loadingSlots}
-									onSlotBlock={onBlockSlot}
-									onSlotUnblock={onUnblockSlot}
-									onSlotDelete={onDeleteSlot}
-								/>
-							</div>
-						)}
+							) : (
+								<div id='panel-vet-oferta' role='tabpanel' aria-labelledby='tab-vet-oferta'>
+								<p className='text-sm mb-2.5 text-muted-foreground mt-0 max-w-[50rem]'>
+									<strong>Oferta a futuro:</strong> tramos aún reservables (libre o &quot;cerrado&quot; en
+										app), ordenados en día / semana / mes. Elige <strong>una línea</strong> o déjalo en
+										<strong> todas</strong>. Cada bloque: Cerrar, Abrir o Quitar. Para rellenar fechas, usa
+										<strong> Mantenimiento</strong> en la otra pestaña.
+									</p>
+									<div className='flex flex-wrap items-center gap-2 mb-3.5'>
+										<span className='text-[0.8rem] font-semibold text-[#475569] dark:text-muted-foreground'>
+											Línea de atención
+										</span>
+										<div className='flex flex-wrap gap-1.5 items-center'>
+											<button
+												type='button'
+												className={cn(
+													'font-[inherit] text-[0.78rem] font-medium rounded-full border border-border bg-white dark:bg-card px-2.5 py-1.5 text-[#334155] dark:text-foreground cursor-pointer transition-colors hover:border-primary/40',
+													ofertaLineFilter === '' && 'bg-primary/10 border-primary/45 text-primary font-semibold'
+												)}
+												aria-pressed={ofertaLineFilter === ''}
+												onClick={() => setOfertaLineFilter('')}
+											>
+												Todas las líneas
+											</button>
+											{clinicLines
+												.filter((l) => l.active !== false)
+												.map((l) => {
+													const lineId = String(l._id != null ? l._id : l.id != null ? l.id : '');
+													if (!lineId) return null;
+													return (
+														<button
+															key={lineId}
+															type='button'
+															className={cn(
+																'font-[inherit] text-[0.78rem] font-medium rounded-full border border-border bg-white dark:bg-card px-2.5 py-1.5 text-[#334155] dark:text-foreground cursor-pointer transition-colors hover:border-primary/40',
+																ofertaLineFilter === lineId && 'bg-primary/10 border-primary/45 text-primary font-semibold'
+															)}
+															aria-pressed={ofertaLineFilter === lineId}
+															onClick={() => setOfertaLineFilter(lineId)}
+														>
+															{l.displayName || 'Línea'}
+														</button>
+													);
+												})}
+										</div>
+										<span className='text-[0.8rem] text-muted-foreground' aria-live='polite'>
+											{filteredOfertaSlots.length} tramo
+											{filteredOfertaSlots.length === 1 ? '' : 's'}
+										</span>
+									</div>
+									<ProviderClinicCalendar
+										key='vet-oferta'
+										events={ofertaCalEvents}
+										mode='oferta'
+										agendaLoading={loadingSlots}
+										onSlotBlock={onBlockSlot}
+										onSlotUnblock={onUnblockSlot}
+										onSlotDelete={onDeleteSlot}
+									/>
+								</div>
+							)}
 
 						{agendaError ? (
-							<p className="error" style={{ marginTop: 8 }} role="alert">
+							<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3 mt-2' role='alert'>
 								{agendaError}
 							</p>
 						) : null}
-						{agendaMsg && !agendaError ? <p className="review-success" style={{ marginTop: 6 }}>{agendaMsg}</p> : null}
-						{vetAgendaTab === 'citas' ? (
-							<>
-								<details className="agenda-advanced-details" id="agenda-mantenimiento" style={{ marginTop: 8 }}>
-									<summary className="muted" style={{ cursor: 'pointer', fontSize: '0.95rem', listStyle: 'revert' }}>
+						{agendaMsg && !agendaError ? (
+							<p className='text-sm text-green-700 dark:text-green-400 mt-1.5'>
+								{agendaMsg}
+							</p>
+						) : null}
+							{vetAgendaTab === 'citas' ? (
+								<>
+						<details id='agenda-mantenimiento' className='mt-2 rounded-xl border border-border bg-muted/20 overflow-hidden'>
+									<summary className='flex cursor-pointer items-center gap-2 px-4 py-3 text-[0.88rem] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors select-none list-none [&::-webkit-details-marker]:hidden'>
 										Mantenimiento: rellenar franjas o &quot;permitir otra vez&quot; tramos quitados a mano
 									</summary>
-									<p className="hint muted" style={{ margin: '0.5rem 0' }}>
-										<strong>Rellenar:</strong> añade tramos faltantes en 8 semanas, respetando reservas y
-										omitidos. <strong>Permitir otra vez</strong> usa el rango de fechas bajo: limpia la memoria
-										de una franja que borraste a mano para que pueda volver a publicarse.
-									</p>
-									<div className="agenda-generate-form" style={{ marginBottom: 4 }}>
-										<div className="edit-row-2">
-											<label className="edit-field">
-												<span>Rango: desde (fecha)</span>
-												<input type="date" value={omitsFrom} onChange={(e) => setOmitsFrom(e.target.value)} />
-											</label>
-											<label className="edit-field">
-												<span>Hasta</span>
-												<input type="date" value={omitsTo} onChange={(e) => setOmitsTo(e.target.value)} />
-											</label>
+									<div className='px-4 pb-4 pt-2'>
+										<p className='text-sm text-muted-foreground my-2'>
+											<strong>Rellenar:</strong> añade tramos faltantes en 8 semanas, respetando reservas y
+											omitidos. <strong>Permitir otra vez</strong> usa el rango de fechas bajo: limpia la memoria
+											de una franja que borraste a mano para que pueda volver a publicarse.
+										</p>
+										<div className='mb-1'>
+											<div className='grid grid-cols-2 gap-3 max-sm:grid-cols-1'>
+												<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0'>
+													<span>Rango: desde (fecha)</span>
+													<input className={inputCls} type='date' value={omitsFrom} onChange={(e) => setOmitsFrom(e.target.value)} />
+												</label>
+												<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0'>
+													<span>Hasta</span>
+													<input className={inputCls} type='date' value={omitsTo} onChange={(e) => setOmitsTo(e.target.value)} />
+												</label>
+											</div>
+										</div>
+										<div className='flex flex-wrap gap-2'>
+											<form onSubmit={onForceFillAgenda} className='m-0'>
+												<button
+													type='submit'
+													className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer'
+												>
+													Rellenar agenda ahora
+												</button>
+											</form>
+											<form onSubmit={onClearOmittedAgenda} className='m-0'>
+												<button
+													type='submit'
+													className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer'
+												>
+													Permitir otra vez (rango de arriba)
+												</button>
+											</form>
 										</div>
 									</div>
-									<div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 2 }}>
-										<form onSubmit={onForceFillAgenda} style={{ margin: 0 }}>
-											<button type="submit" className="btn-sm" style={{ margin: 0 }}>
-												Rellenar agenda ahora
-											</button>
-										</form>
-										<form onSubmit={onClearOmittedAgenda} style={{ margin: 0 }}>
-											<button type="submit" className="btn-sm">
-												Permitir otra vez (rango de arriba)
-											</button>
-										</form>
-									</div>
 								</details>
-								<p className="hint muted" style={{ margin: '0.5rem 0 0' }}>
+								<p className='text-sm text-muted-foreground mt-2'>
 									Desde <strong>Atención clínica</strong> en la tabla abres ficha; confirma o reseña al dueño
 									con los botones de la fila.
 								</p>
-							</>
-						) : null}
-					</>
-				) : (
-					<p className="hint muted" style={{ marginTop: 0 }}>
-						Confirmar o cancelar; en paseo y cuidado podrás marcar el servicio como completado.
-					</p>
-				)}
-				{bookingActionMsg ? <p className='review-success'>{bookingActionMsg}</p> : null}
-				{bookingActionErr ? <p className='error'>{bookingActionErr}</p> : null}
-				{!isVet || vetAgendaTab === 'citas' ? (
-					<>
-						{loadingBookings ? <p>Cargando…</p> : null}
-						{error ? <p className='error'>{error}</p> : null}
-						{!loadingBookings && bookings.length === 0 ? (
-							<p className='muted'>Aún no hay ítems.</p>
-						) : null}
-						{bookings.length > 0 ? (
-					<div className='bookings-table-wrap'>
-						<table className='bookings-table'>
-							<thead>
-								<tr>
-									<th>Fecha</th>
-									{isVet ? <th>Línea o servicio</th> : null}
-									<th>Origen</th>
-									<th>Cliente</th>
-									<th>Detalle / mascota</th>
-									<th>Estado</th>
-									<th>Acciones</th>
-								</tr>
-							</thead>
-							<tbody>
-								{bookings.map((row) => {
-									const own = row.owner;
-									const st = APPOINTMENT_STATUS_LABELS[row.status] || row.status;
-									const origin = BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource;
-									const pet = row.pet;
-									const detail = [pet?.name, pet?.species, row.reason].filter(Boolean).join(' · ') || '—';
-									const showConfirm = canConfirm(row);
-									const showCancel = canCancel(row);
-									const showComplete =
-										canCompleteWalker(row) || (isVet && canCompleteVetClinicSlot(row));
-									const showClinical = canRegisterClinical(row);
-									const showClientReview = canProviderReviewClientRow(row);
-									const pid = petIdString(row);
-									const lineLabel = isVet
-										? row.clinicService?.displayName
-											? String(row.clinicService.displayName)
-											: row.bookingSource === 'walker_request'
-												? 'Paseo / cuidado'
-												: '—'
-										: null;
-									return (
-										<tr key={`${row.kind}-${row.id}`}>
-											<td>{formatRange(row.startAt, row.endAt)}</td>
-											{isVet ? <td>{lineLabel || '—'}</td> : null}
-											<td>{origin}</td>
-											<td>{ownerLabel(own)}</td>
-											<td className='bookings-detail'>{detail}</td>
-											<td>{st}</td>
-											<td className='provider-booking-actions'>
-												{showConfirm ? (
-													<button type='button' className='btn-approve btn-sm' onClick={() => onConfirmBooking(row)}>
-														Confirmar
-													</button>
-												) : null}
-												{showCancel ? (
-													<button type='button' className='btn-reject btn-sm' onClick={() => onCancelBooking(row)}>
-														Cancelar
-													</button>
-												) : null}
-												{showComplete ? (
-													<button
-														type='button'
-														className='btn-complete btn-sm'
-														onClick={() => onCompleteBooking(row)}
-													>
-														Completar
-													</button>
-												) : null}
-												{showClinical ? (
-													<Link
-														className='btn-sm'
-														to={`/proveedor/atencion-clinica?appointmentId=${encodeURIComponent(String(row.id))}&petId=${encodeURIComponent(pid)}`}
-													>
-														Atención clínica
-													</Link>
-												) : null}
-												{showClientReview ? (
-													<button
-														type='button'
-														className='btn-sm'
-														onClick={() => setClientReviewRow(row)}
-													>
-														Reseña al dueño
-													</button>
-												) : null}
-												{!showConfirm &&
-												!showCancel &&
-												!showComplete &&
-												!showClinical &&
-												!showClientReview ? (
-													<span className='muted'>—</span>
-												) : null}
-											</td>
+								</>
+							) : null}
+						</>
+					) : (
+						<>
+							<p className='text-sm text-muted-foreground mt-0 mb-2.5 max-w-[50rem]'>
+								<strong>Calendario (hora Chile):</strong> solicitudes y reservas no canceladas. Desde la{' '}
+								<strong>tabla</strong> de abajo puedes confirmar, cancelar o marcar como completado.
+							</p>
+							<ProviderClinicCalendar
+								key='walker-citas'
+								events={calendarEvents}
+								mode='citas'
+								citasLoading={loadingBookings}
+							/>
+						</>
+					)}
+					{bookingActionMsg ? (
+						<p className='text-sm text-green-700 dark:text-green-400'>{bookingActionMsg}</p>
+					) : null}
+					{bookingActionErr ? (
+						<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3'>
+							{bookingActionErr}
+						</p>
+					) : null}
+					{!isVet || vetAgendaTab === 'citas' ? (
+						<>
+							{loadingBookings ? <p className='text-muted-foreground'>Cargando…</p> : null}
+							{error ? (
+								<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3'>
+									{error}
+								</p>
+							) : null}
+							{!loadingBookings && bookings.length === 0 ? (
+								<p className='text-muted-foreground'>Aún no hay ítems.</p>
+							) : null}
+							{bookings.length > 0 ? (
+							<div className='overflow-x-auto rounded-xl border border-border bg-card mt-4 shadow-sm'>
+								<table className='w-full border-collapse text-sm'>
+									<thead>
+										<tr>
+											<th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Fecha</th>
+											{isVet ? <th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Línea o servicio</th> : null}
+											<th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Origen</th>
+											<th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Cliente</th>
+											<th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Detalle / mascota</th>
+											<th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Estado</th>
+											<th className='px-4 py-3 text-left text-[0.72rem] font-bold uppercase tracking-wide text-muted-foreground border-b border-border bg-muted/40 dark:bg-muted/20 whitespace-nowrap'>Acciones</th>
 										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
-						) : null}
-					</>
-				) : null}
-			</section>
+									</thead>
+										<tbody>
+											{bookings.map((row) => {
+												const own = row.owner;
+												const st = APPOINTMENT_STATUS_LABELS[row.status] || row.status;
+												const origin = BOOKING_SOURCE_LABELS[row.bookingSource] || row.bookingSource;
+												const pet = row.pet;
+												const detail = [pet?.name, pet?.species, row.reason].filter(Boolean).join(' · ') || '—';
+												const showConfirm = canConfirm(row);
+												const showCancel = canCancel(row);
+												const showComplete =
+													canCompleteWalker(row) || (isVet && canCompleteVetClinicSlot(row));
+												const showClinical = canRegisterClinical(row);
+												const showClientReview = canProviderReviewClientRow(row);
+												const pid = petIdString(row);
+												const lineLabel = isVet
+													? row.clinicService?.displayName
+														? String(row.clinicService.displayName)
+														: row.bookingSource === 'walker_request'
+															? 'Paseo / cuidado'
+															: '—'
+													: null;
+												return (
+											<tr key={`${row.kind}-${row.id}`} className='hover:bg-muted/20 transition-colors'>
+												<td className='px-4 py-3 text-sm border-b border-border/60 align-top'>{formatRange(row.startAt, row.endAt)}</td>
+												{isVet ? <td className='px-4 py-3 text-sm border-b border-border/60 align-top'>{lineLabel || '—'}</td> : null}
+												<td className='px-4 py-3 text-sm border-b border-border/60 align-top'>{origin}</td>
+												<td className='px-4 py-3 text-sm border-b border-border/60 align-top'>{ownerLabel(own)}</td>
+												<td className='px-4 py-3 text-sm border-b border-border/60 align-top text-muted-foreground'>{detail}</td>
+												<td className='px-4 py-3 text-sm border-b border-border/60 align-top'>{st}</td>
+												<td className='px-4 py-3 text-sm border-b border-border/60 align-top'>
+															<div className='flex flex-wrap gap-1.5 items-center whitespace-nowrap'>
+															{showConfirm ? (
+																<button
+																	type='button'
+																	className='inline-flex h-8 items-center px-3 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-600 transition-colors border-0 cursor-pointer'
+																	onClick={() => onConfirmBooking(row)}
+																>
+																	Confirmar
+																</button>
+															) : null}
+															{showCancel ? (
+																<button
+																	type='button'
+																	className='inline-flex h-8 items-center px-3 rounded-lg border border-red-200 bg-white dark:bg-card text-red-800 dark:text-red-300 dark:border-red-900 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer'
+																	onClick={() => onCancelBooking(row)}
+																>
+																	Cancelar
+																</button>
+															) : null}
+															{showComplete ? (
+																<button
+																	type='button'
+																	className='inline-flex h-8 items-center px-3 rounded-lg bg-teal-700 text-white text-xs font-bold hover:bg-teal-600 transition-colors border-0 cursor-pointer'
+																	onClick={() => onCompleteBooking(row)}
+																>
+																	Completar
+																</button>
+															) : null}
+															{showClinical ? (
+																<Link
+																	className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors'
+																	to={`/proveedor/atencion-clinica?appointmentId=${encodeURIComponent(String(row.id))}&petId=${encodeURIComponent(pid)}`}
+																>
+																	Atención clínica
+																</Link>
+															) : null}
+															{showClientReview ? (
+																<button
+																	type='button'
+																	className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer'
+																	onClick={() => setClientReviewRow(row)}
+																>
+																	Reseña al dueño
+																</button>
+															) : null}
+																{!showConfirm &&
+																!showCancel &&
+																!showComplete &&
+																!showClinical &&
+																!showClientReview ? (
+																	<span className='text-muted-foreground'>—</span>
+																) : null}
+															</div>
+														</td>
+													</tr>
+												);
+											})}
+										</tbody>
+									</table>
+								</div>
+							) : null}
+						</>
+					) : null}
+				</div>
+				</section>
 
-			{isVet || isWalkerCare ? (
-				<>
-					{isVet ? (
-						<section
-							className="edit-fieldset book-section"
-							aria-labelledby="clinic-lines-heading"
-						>
-							<h2 id="clinic-lines-heading">1. Líneas de atención (servicio o profesional)</h2>
-							<p className="hint muted" style={{ marginTop: 0, maxWidth: '42rem' }}>
+				{isVet || isWalkerCare ? (
+					<>
+						{isVet ? (
+							<section
+								className='rounded-2xl border border-border bg-card shadow-sm overflow-hidden'
+								aria-labelledby='clinic-lines-heading'
+							>
+							<div className='flex items-center gap-2 px-5 py-4 border-b border-border bg-gradient-to-r from-muted/40 to-transparent dark:from-muted/20'>
+								<Stethoscope className='w-4 h-4 text-primary/70 shrink-0' />
+								<h2 id='clinic-lines-heading' className='text-base font-bold text-foreground'>
+									Líneas de atención (servicio o profesional)
+								</h2>
+							</div>
+							<div className='p-4 sm:p-5'>
+							<p className='text-sm text-muted-foreground mt-0 max-w-[42rem] mb-2.5'>
 								En reserva, el dueño <strong>elige la línea</strong>. Cada línea tiene su propia
 								duración (ej. 30 o 40 min) y a partir de eso se crean los <strong>tramos consecutivos</strong>{' '}
 								en el horario de la clínica. Al cliente no se muestra el precio de consulta, solo
 								identificación del servicio.
 							</p>
-							<p className="hint muted" style={{ margin: '0 0 0.75rem' }}>
+							<p className='text-sm text-muted-foreground mb-3'>
 								<strong>Recepción:</strong> hoy aplica un solo horario para toda la clínica,{' '}
-								<Link to="/proveedor/mi-perfil">{agendaStart}–{agendaEnd} (clic para cambiarlo)</Link>.
+								<Link to='/proveedor/mi-perfil' className='text-primary hover:underline'>
+									{agendaStart}–{agendaEnd} (clic para cambiarlo)
+								</Link>.
 							</p>
 							{clinicLines.length > 0 ? (
-								<ul className="clinic-line-summary" style={{ margin: '0 0 1rem', paddingLeft: '1.1rem' }}>
+								<div className='flex flex-wrap gap-2 mb-4'>
 									{clinicLines
 										.filter((l) => l.active !== false)
 										.map((l) => (
-											<li key={String(l._id || l.id)}>
-												<strong>{l.displayName}</strong>
-												{l.slotDurationMinutes ? ` · franja de ${l.slotDurationMinutes} min` : null}
-											</li>
+											<div key={String(l._id || l.id)} className='inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-sm'>
+												<span className='font-semibold'>{l.displayName}</span>
+												{l.slotDurationMinutes ? <span className='text-muted-foreground text-xs'>· {l.slotDurationMinutes} min</span> : null}
+											</div>
 										))}
-								</ul>
+								</div>
 							) : null}
-							<form className="agenda-generate-form" onSubmit={onAddClinicLine} style={{ marginBottom: 8 }}>
-								<div className="edit-row-2">
-									<label className="edit-field">
+							<form className='mb-2' onSubmit={onAddClinicLine}>
+								<div className='grid grid-cols-2 gap-3 max-sm:grid-cols-1'>
+									<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0'>
 										<span>Nombre (ej. Consulta Dra. Soto, Estética)</span>
 										<input
-											type="text"
+											className={inputCls}
+											type='text'
 											value={newLineName}
 											onChange={(e) => setNewLineName(e.target.value)}
-											placeholder="Nombre visible en la reserva"
+											placeholder='Nombre visible en la reserva'
 											maxLength={120}
 										/>
 									</label>
-									<label className="edit-field">
+									<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0'>
 										<span>Duración de cada tramo (min)</span>
 										<input
-											type="number"
+											className={inputCls}
+											type='number'
 											min={15}
 											max={180}
 											step={5}
@@ -955,50 +1041,67 @@ export function ProviderDashboardPage() {
 										/>
 									</label>
 								</div>
-								<button type="submit" className="btn-sm">
+								<button
+									type='submit'
+									className='inline-flex h-9 items-center px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors border-0 cursor-pointer'
+								>
 									Añadir línea
 								</button>
 							</form>
-							{clinicLineMsg ? <p className="review-success">{clinicLineMsg}</p> : null}
+							{clinicLineMsg ? (
+								<p className='text-sm text-green-700 dark:text-green-400'>{clinicLineMsg}</p>
+							) : null}
+							</div>
 						</section>
 					) : null}
 
 					{isWalkerCare && !isVet ? (
-						<section className="edit-fieldset book-section">
-							<h2>Servicios ofrecidos (con precio referencia)</h2>
-							<p className="hint muted">
+						<section className='rounded-2xl border border-border bg-card shadow-sm overflow-hidden'>
+							<div className='flex items-center gap-2 px-5 py-4 border-b border-border bg-gradient-to-r from-muted/40 to-transparent dark:from-muted/20'>
+								<ListChecks className='w-4 h-4 text-primary/70 shrink-0' />
+								<h2 className='text-base font-bold text-foreground'>
+									Servicios ofrecidos (con precio referencia)
+								</h2>
+							</div>
+							<div className='p-4 sm:p-5'>
+							<p className='text-sm text-muted-foreground mb-2.5'>
 								Los precios se muestran en el perfil. La disponibilidad y solicitudes de paseo o cuidado
 								van en otra sección; aquí defines líneas y tarifa referencia.
 							</p>
 							{clinicLines.length > 0 ? (
-								<p className="hint muted" style={{ margin: '0 0 0.5rem' }}>
-									<strong>Activas:</strong>{' '}
+								<div className='flex flex-wrap gap-2 mb-4'>
 									{clinicLines
 										.filter((l) => l.active !== false)
 										.map((l) => {
 											const p =
 												l.priceClp != null ? ` (${l.priceClp} ${l.currency || 'CLP'})` : '';
-											return `${l.displayName}${p}`;
-										})
-										.join(' · ')}
-								</p>
+											return (
+												<div key={String(l._id || l.id)} className='inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-sm'>
+													<span className='font-semibold'>{l.displayName}</span>
+													{p ? <span className='text-muted-foreground text-xs'>{p}</span> : null}
+												</div>
+											);
+										})}
+								</div>
 							) : null}
-							<form className="agenda-generate-form" onSubmit={onAddClinicLine} style={{ marginBottom: 16 }}>
-								<div className="edit-row-2">
-									<label className="edit-field">
+							<form className='mb-4' onSubmit={onAddClinicLine}>
+								<div className='grid grid-cols-2 gap-3 max-sm:grid-cols-1'>
+									<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0'>
 										<span>Nombre del servicio</span>
 										<input
-											type="text"
+											className={inputCls}
+											type='text'
 											value={newLineName}
 											onChange={(e) => setNewLineName(e.target.value)}
-											placeholder="ej. Paseo 45 min"
+											placeholder='ej. Paseo 45 min'
 											maxLength={120}
 										/>
 									</label>
-									<label className="edit-field">
+									<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0'>
 										<span>Minutos (duración o franja)</span>
 										<input
-											type="number"
+											className={inputCls}
+											type='number'
 											min={15}
 											max={180}
 											step={5}
@@ -1007,54 +1110,69 @@ export function ProviderDashboardPage() {
 										/>
 									</label>
 								</div>
-								<label className="edit-field" style={{ marginTop: 8, display: 'block' }}>
-									<span>Precio referencia (CLP)</span>
-									<input
-										type="number"
-										min={0}
-										step={1}
-										value={newLinePrice}
-										onChange={(e) => setNewLinePrice(e.target.value)}
-										required
-									/>
-								</label>
-								<button type="submit" className="btn-sm" style={{ marginTop: 8 }}>
+								<label className='flex flex-col gap-1.5 mb-3 text-sm last:mb-0 mt-2'>
+										<span>Precio referencia (CLP)</span>
+										<input
+											className={inputCls}
+											type='number'
+											min={0}
+											step={1}
+											value={newLinePrice}
+											onChange={(e) => setNewLinePrice(e.target.value)}
+											required
+										/>
+									</label>
+								<button
+									type='submit'
+									className='inline-flex h-9 items-center px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors border-0 cursor-pointer mt-2'
+								>
 									Agregar servicio con precio
 								</button>
 							</form>
-							{clinicLineMsg ? <p className="review-success">{clinicLineMsg}</p> : null}
+							{clinicLineMsg ? (
+								<p className='text-sm text-green-700 dark:text-green-400'>{clinicLineMsg}</p>
+							) : null}
+							</div>
 						</section>
 					) : null}
-				</>
-			) : (
-				<p className="muted">Añadiremos secciones según el tipo de proveedor cuando aplique.</p>
-			)}
+					</>
+				) : (
+					<p className='text-muted-foreground'>
+						Añadiremos secciones según el tipo de proveedor cuando aplique.
+					</p>
+				)}
 			</div>
 
-			{clientReviewRow ? (
+		{clientReviewRow ? (
+			<div
+				className='fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4'
+				role='presentation'
+				onClick={() => {
+					if (!provSubmit) closeClientReviewModal();
+				}}
+			>
 				<div
-					className="report-modal-backdrop"
-					role="presentation"
-					onClick={() => {
-						if (!provSubmit) closeClientReviewModal();
-					}}
+					className='rounded-2xl border border-border bg-card shadow-xl p-6 max-w-md w-full max-h-[90vh] overflow-auto'
+					role='dialog'
+					aria-modal='true'
+					aria-labelledby='prov-client-review-title'
+					onClick={(e) => e.stopPropagation()}
 				>
-					<div
-						className="report-modal"
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="prov-client-review-title"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<h3 id="prov-client-review-title">Reseña al dueño (cliente)</h3>
-						<p className="muted" style={{ fontSize: '0.9rem' }}>
+					<h3 id='prov-client-review-title' className='text-lg font-bold text-foreground mb-1'>
+						Reseña al dueño (cliente)
+					</h3>
+						<p className='text-muted-foreground text-[0.9rem] mb-3'>
 							{formatRange(clientReviewRow.startAt, clientReviewRow.endAt)} —{' '}
 							{ownerLabel(clientReviewRow.owner || clientReviewRow.dueno)}
 						</p>
-						{provEligLoading ? <p>Cargando…</p> : null}
-						{provEligErr ? <p className="error">{provEligErr}</p> : null}
+						{provEligLoading ? <p className='text-muted-foreground'>Cargando…</p> : null}
+						{provEligErr ? (
+							<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive mb-3'>
+								{provEligErr}
+							</p>
+						) : null}
 						{!provEligLoading && provElig && !provElig.canReview && !provElig.hasReview ? (
-							<p className="muted">
+							<p className='text-muted-foreground text-sm'>
 								En esta cita aún no aplica reseñar al cliente o no tienes permiso. Estado:{' '}
 								{provElig.appointmentStatus || '—'}.
 							</p>
@@ -1070,65 +1188,77 @@ export function ProviderDashboardPage() {
 											<strong>Observación:</strong> {provForm.comment}
 										</p>
 									) : null}
-									<p className="muted" style={{ fontSize: '0.9rem' }}>
+									<p className='text-muted-foreground text-[0.9rem] mb-2'>
 										La edición solo estuvo disponible 24 h tras publicar.
 									</p>
-									<div className="report-modal-actions">
-										<button type="button" className="btn-sm" onClick={closeClientReviewModal}>
-											Cerrar
-										</button>
-									</div>
+								<div className='flex gap-2 justify-end mt-2'>
+									<button
+										type='button'
+										className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer'
+										onClick={closeClientReviewModal}
+									>
+										Cerrar
+									</button>
 								</div>
-							) : (
-								<form
-									className="review-form"
-									onSubmit={(e) => {
-										e.preventDefault();
-										void submitProviderToOwnerReview();
-									}}
-								>
-									<label className="review-field">
-										<span>Calificación (estrellas)</span>
-										<select
-											value={provForm.rating}
-											onChange={(e) =>
-												setProvForm((f) => ({ ...f, rating: Number(e.target.value) }))
-											}
-										>
-											{[5, 4, 3, 2, 1].map((n) => (
-												<option key={n} value={n}>
-													{n} estrellas
-												</option>
-											))}
-										</select>
-									</label>
-									<label className="review-field">
-										<span>Observación (opcional, máx. 200)</span>
-										<textarea
-											value={provForm.comment}
-											onChange={(e) =>
-												setProvForm((f) => ({ ...f, comment: e.target.value }))
-											}
-											rows={3}
-											maxLength={200}
-										/>
-									</label>
-									{provElig.hasReview ? (
-										<p className="muted" style={{ fontSize: '0.85rem' }}>
-											Solo puedes editar en las 24 h posteriores a publicar.
-										</p>
-									) : null}
-									{provMsg ? <p className="review-success">{provMsg}</p> : null}
-									<div className="report-modal-actions">
-										<button
-											type="button"
-											className="btn-sm"
-											onClick={closeClientReviewModal}
-											disabled={provSubmit}
-										>
-											Cerrar
-										</button>
-										<button type="submit" className="review-submit" disabled={provSubmit}>
+							</div>
+						) : (
+							<form
+								className='flex flex-col gap-3'
+								onSubmit={(e) => {
+									e.preventDefault();
+									void submitProviderToOwnerReview();
+								}}
+							>
+								<label className='flex flex-col gap-1.5 text-sm'>
+									<span>Calificación (estrellas)</span>
+									<select
+										className='h-10 w-full rounded-xl border border-input bg-background px-3 py-2.5 font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+										value={provForm.rating}
+										onChange={(e) =>
+											setProvForm((f) => ({ ...f, rating: Number(e.target.value) }))
+										}
+									>
+										{[5, 4, 3, 2, 1].map((n) => (
+											<option key={n} value={n}>
+												{n} estrellas
+											</option>
+										))}
+									</select>
+								</label>
+								<label className='flex flex-col gap-1.5 text-sm'>
+									<span>Observación (opcional, máx. 200)</span>
+									<textarea
+										className='w-full rounded-xl border border-input bg-background px-3 py-2.5 font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+										value={provForm.comment}
+										onChange={(e) =>
+											setProvForm((f) => ({ ...f, comment: e.target.value }))
+										}
+										rows={3}
+										maxLength={200}
+									/>
+								</label>
+								{provElig.hasReview ? (
+									<p className='text-muted-foreground text-[0.85rem]'>
+										Solo puedes editar en las 24 h posteriores a publicar.
+									</p>
+								) : null}
+								{provMsg ? (
+									<p className='text-sm text-green-700 dark:text-green-400'>{provMsg}</p>
+								) : null}
+								<div className='flex gap-2 justify-end mt-2'>
+									<button
+										type='button'
+										className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors cursor-pointer disabled:opacity-60'
+										onClick={closeClientReviewModal}
+										disabled={provSubmit}
+									>
+										Cerrar
+									</button>
+									<button
+										type='submit'
+										className='inline-flex h-10 items-center justify-center rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-65 disabled:cursor-not-allowed border-0 cursor-pointer'
+										disabled={provSubmit}
+									>
 											{provSubmit
 												? 'Guardando…'
 												: provElig.hasReview

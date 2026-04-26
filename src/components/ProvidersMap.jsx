@@ -105,18 +105,19 @@ export function ProvidersMap({ center, markers, userPosition, selectedProviderId
 						}}
 					>
 						<Popup>
-							<div className='popup'>
+							<div className="min-w-[170px] flex flex-col gap-1.5">
 								{provider.profileImage ? (
 									<img
 										src={resolveBackendAssetUrl(provider.profileImage)}
 										alt={provider.fullName}
+										className="w-full h-[100px] object-cover rounded-lg"
 									/>
 								) : null}
 								<strong>{provider.fullName}</strong>
 								<p>
 									{provider.rating != null ? `${provider.rating.toFixed(1)} (${provider.ratingCount || 0})` : 'Sin calificaciones'}
 								</p>
-								<Link to={getProviderProfilePath(provider)}>
+								<Link className="text-primary font-semibold" to={getProviderProfilePath(provider)}>
 									Ver perfil
 								</Link>
 							</div>
