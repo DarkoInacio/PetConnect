@@ -25,7 +25,9 @@ import { RegisterProviderPage } from './pages/RegisterProviderPage';
 import { RequestServicePage } from './pages/RequestServicePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { VetClinicalPage } from './pages/VetClinicalPage';
-import './App.css';
+import { ChatWidget } from './components/ChatWidget';
+
+// App.css eliminado — todos los estilos migrados a Tailwind v4
 
 function App() {
 	return (
@@ -34,7 +36,11 @@ function App() {
 				Saltar al contenido
 			</a>
 			<AppLayoutHeader />
-			<main id="contenido-principal" className="app-main" tabIndex={-1}>
+			<main
+				id="contenido-principal"
+				className="flex min-h-0 flex-1 flex-col w-full"
+				tabIndex={-1}
+			>
 			<Routes>
 				<Route path='/' element={<ProvidersMapPage />} />
 				<Route path='/explorar' element={<ProvidersExplorePage />} />
@@ -73,6 +79,7 @@ function App() {
 				<Route path='/proveedores/:id' element={<ProviderProfilePage />} />
 			</Routes>
 			</main>
+			<ChatWidget />
 		</BrowserRouter>
 	);
 }

@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../context/ThemeProvider';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetTrigger } from './ui/sheet';
 import {
@@ -10,7 +11,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from './ui/dropdown-menu';
-import { LayoutGrid, LogOut, Map, MapPin, Menu, User } from 'lucide-react';
+import { LayoutGrid, LogOut, Map, MapPin, Menu, Moon, Sun, User } from 'lucide-react';
 import { hasRole } from '../lib/userRoles';
 
 /**
@@ -45,11 +46,6 @@ function navItemsForUser(user) {
 		},
 		{ label: 'Mis reseñas', to: '/proveedor/mis-resenas', when: (u) => hasRole(u, 'proveedor') },
 		{
-			label: 'Atención clínica',
-			to: '/proveedor/atencion-clinica',
-			when: (u) => hasRole(u, 'proveedor') && u?.providerType === 'veterinaria'
-		},
-		{
 			label: 'Mi cuenta',
 			to: '/cuenta/reservas',
 			when: (u) => hasRole(u, 'dueno'),
@@ -63,18 +59,22 @@ function navItemsForUser(user) {
 
 export function AppLayoutHeader() {
 	const { user, loading, logout } = useAuth();
+	const { resolvedTheme, setTheme } = useTheme();
 	const location = useLocation();
 	const [open, setOpen] = useState(false);
 	const closeOnNavigate = (to) => {
 		if (to !== location.pathname) setOpen(false);
 	};
 
+	const isDark = resolvedTheme === 'dark';
+	const toggleTheme = () => setTheme(isDark ? 'light' : 'dark');
+
 	const drawerItems = navItemsForUser(user);
 
 	return (
 		<header
 			role="banner"
-			className="sticky top-0 z-40 w-full min-h-12 border-b border-emerald-950/20 bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/90 text-slate-50 shadow-[0_1px_0_rgba(45,212,191,0.18)] supports-[backdrop-filter]:backdrop-blur-sm"
+			className="sticky top-0 z-[1100] w-full min-h-12 border-b border-emerald-950/20 bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/90 text-slate-50 shadow-[0_1px_0_rgba(45,212,191,0.18)] supports-[backdrop-filter]:backdrop-blur-sm"
 		>
 			<div className="mx-auto flex min-h-[3rem] max-w-[1200px] items-center justify-between gap-2 px-3 sm:px-4">
 				<div className="flex min-w-0 flex-1 items-center gap-2">
@@ -130,10 +130,25 @@ export function AppLayoutHeader() {
 					</Link>
 				</div>
 
-				<div className="flex shrink-0 items-center gap-2">
-					{loading ? <span className="text-xs text-slate-400">…</span> : null}
+			<div className="flex shrink-0 items-center gap-2">
+				{loading ? <span className="text-xs text-slate-400">…</span> : null}
 
-					<DropdownMenu>
+				<Button
+					variant="ghost"
+					size="icon"
+					type="button"
+					onClick={toggleTheme}
+					aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+					className="h-9 w-9 shrink-0 text-slate-300 ring-offset-slate-900 hover:bg-slate-800/90 hover:text-teal-200"
+				>
+					{isDark ? (
+						<Sun className="h-4 w-4" aria-hidden />
+					) : (
+						<Moon className="h-4 w-4" aria-hidden />
+					)}
+				</Button>
+
+				<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
 								variant="secondary"
@@ -161,6 +176,13 @@ export function AppLayoutHeader() {
 							{!loading && user && hasRole(user, 'dueno') ? (
 								<DropdownMenuItem asChild>
 									<Link to="/cuenta/perfil">Mi perfil</Link>
+								</DropdownMenuItem>
+							) : null}
+							{!loading && user && hasRole(user, 'proveedor') ? (
+								<DropdownMenuItem asChild>
+									<Link to="/proveedor">
+										{user.providerType === 'veterinaria' ? 'Panel clínica' : 'Panel paseo / cuidado'}
+									</Link>
 								</DropdownMenuItem>
 							) : null}
 							{!loading && user && hasRole(user, 'proveedor') ? (

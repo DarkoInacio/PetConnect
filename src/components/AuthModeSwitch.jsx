@@ -1,26 +1,31 @@
 import { Link } from 'react-router-dom';
 
-/**
- * Enlace principal entre inicio de sesión y registro (dueño) para reforzar el contexto de cada pantalla.
- */
 export function AuthModeSwitch({ mode = 'login' }) {
 	if (mode === 'register') {
 		return (
-			<div className="auth-footer-links">
-				<p className="muted" style={{ margin: 0 }}>
-					<span className="auth-mode-label">Inicio de sesión</span> — ¿Ya tienes cuenta?{' '}
-					<Link to="/login">Entrar aquí</Link>
+			<div className="pt-4 border-t border-border">
+				<p className="text-sm text-muted-foreground text-center m-0">
+					¿Ya tienes cuenta?{' '}
+					<Link to="/login" className="text-sm text-primary font-semibold hover:underline">
+						Iniciar sesión
+					</Link>
 				</p>
 			</div>
 		);
 	}
 	return (
-		<div className="auth-footer-links">
-			<p className="muted" style={{ margin: '0 0 0.5rem' }}>
-				<span className="auth-mode-label">Crear cuenta</span> — Si aún no estás en PetConnect,{' '}
-				<Link to="/registro">regístrate como dueño</Link> o como{' '}
-				<Link to="/registro-proveedor">proveedor (clínica, paseo, cuidado)</Link>.
+		<div className="pt-4 border-t border-border">
+			<p className="text-sm text-muted-foreground text-center mb-1.5">
+				¿Aún no tienes cuenta?
 			</p>
+			<div className="flex flex-col gap-1.5 text-center">
+				<Link to="/registro" className="text-sm text-primary font-semibold hover:underline">
+					Registrarme como dueño
+				</Link>
+				<Link to="/registro-proveedor" className="text-sm text-primary font-semibold hover:underline">
+					Alta de proveedor (clínica, paseo, cuidado)
+				</Link>
+			</div>
 		</div>
 	);
 }

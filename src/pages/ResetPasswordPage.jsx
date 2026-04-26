@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Eye, EyeOff, PawPrint } from 'lucide-react';
 import { resetPassword } from '../services/authForms';
+import { Button } from '@/components/ui/button';
 
 export function ResetPasswordPage() {
 	const [searchParams] = useSearchParams();
@@ -9,6 +11,7 @@ export function ResetPasswordPage() {
 	const email = searchParams.get('email') || '';
 
 	const [newPassword, setNewPassword] = useState('');
+	const [showPassword, setShowPassword] = useState(false);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [submitting, setSubmitting] = useState(false);
@@ -33,13 +36,19 @@ export function ResetPasswordPage() {
 
 	if (missingParams) {
 		return (
-			<div className="page auth-page">
-				<div className="auth-page-stack">
-					<Link className="back-link" to="/login">
+			<div className="flex flex-col items-center justify-center min-h-[min(calc(100dvh-3.25rem),900px)] py-8 px-4">
+				<div className="w-full max-w-sm flex flex-col gap-3">
+					<Link
+						className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline min-h-11 mb-4"
+						to="/login"
+					>
 						← Volver al login
 					</Link>
-					<div className="auth-card" role="alert">
-						<p className="error" style={{ margin: 0 }}>
+					<div
+						className="w-full rounded-2xl border border-t-4 border-t-primary border-border bg-card shadow-lg px-6 py-8 sm:px-8"
+						role="alert"
+					>
+						<p className="rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive m-0">
 							Enlace incompleto. Solicita un nuevo correo de recuperación.
 						</p>
 					</div>
@@ -49,39 +58,93 @@ export function ResetPasswordPage() {
 	}
 
 	return (
-		<div className="page auth-page">
-			<div className="auth-page-stack">
-				<Link className="back-link" to="/login">
+		<div className="flex flex-col items-center justify-center min-h-[min(calc(100dvh-3.25rem),900px)] py-8 px-4">
+			<div className="w-full max-w-sm flex flex-col gap-3">
+				<Link
+					className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline min-h-11 mb-4"
+					to="/login"
+				>
 					← Volver al login
 				</Link>
-				<section className="auth-card" aria-labelledby="reset-title">
-					<div className="auth-card-eyebrow">Nueva clave</div>
-					<h1 id="reset-title">Nueva contraseña</h1>
-					<p className="muted">
-						<strong>Correo:</strong> {email}
+				<section
+					className="w-full rounded-2xl border border-t-4 border-t-primary border-border bg-card shadow-lg px-6 py-8 sm:px-8"
+					aria-labelledby="reset-title"
+				>
+					<div className="flex items-center gap-2 mb-2">
+						<PawPrint className="size-4 text-primary" aria-hidden="true" />
+						<span className="text-[0.7rem] font-bold uppercase tracking-widest text-primary/70">
+							Nueva clave
+						</span>
+					</div>
+					<h1
+						id="reset-title"
+						className="text-[clamp(1.4rem,2.5vw,1.75rem)] font-bold tracking-tight text-foreground mb-1.5"
+					>
+						Nueva contraseña
+					</h1>
+					<p className="text-sm text-muted-foreground mb-6">
+						Cuenta:{' '}
+						<span className="font-semibold text-foreground">{email}</span>
 					</p>
-					<form className="auth-form" onSubmit={onSubmit}>
-					<label className='auth-field'>
-						<span>Nueva contraseña</span>
-						<input
-							type='password'
-							value={newPassword}
-							onChange={(e) => setNewPassword(e.target.value)}
-							required
-							minLength={6}
-						/>
-					</label>
-					<button type='submit' className='auth-submit' disabled={submitting}>
-						{submitting ? 'Guardando…' : 'Guardar'}
-					</button>
-					{message ? <p className="review-success">{message}</p> : null}
-					{error ? (
-						<p className="error" role="alert" aria-live="assertive">
-							{error}
-						</p>
-					) : null}
-				</form>
-			</section>
+					<form className="flex flex-col gap-4" onSubmit={onSubmit}>
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor="reset-password" className="text-sm font-semibold text-foreground">
+								Nueva contraseña
+							</label>
+							<div className="relative">
+								<input
+									id="reset-password"
+									className="h-11 w-full rounded-xl border border-input bg-background px-3 py-2 pr-10 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+									type={showPassword ? 'text' : 'password'}
+									value={newPassword}
+									onChange={(e) => setNewPassword(e.target.value)}
+									required
+									minLength={6}
+								/>
+								<button
+									type="button"
+									aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+									className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+									onClick={() => setShowPassword((v) => !v)}
+								>
+									{showPassword ? (
+										<EyeOff className="size-4" aria-hidden="true" />
+									) : (
+										<Eye className="size-4" aria-hidden="true" />
+									)}
+								</button>
+							</div>
+						</div>
+
+						{message ? (
+							<p
+								className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 px-3.5 py-3 text-sm text-emerald-700 dark:text-emerald-400"
+								role="status"
+								aria-live="polite"
+							>
+								{message}
+							</p>
+						) : null}
+
+						{error ? (
+							<p
+								className="rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive"
+								role="alert"
+								aria-live="assertive"
+							>
+								{error}
+							</p>
+						) : null}
+
+						<Button
+							type="submit"
+							className="h-11 w-full rounded-xl font-bold"
+							disabled={submitting}
+						>
+							{submitting ? 'Guardando…' : 'Guardar contraseña'}
+						</Button>
+					</form>
+				</section>
 			</div>
 		</div>
 	);

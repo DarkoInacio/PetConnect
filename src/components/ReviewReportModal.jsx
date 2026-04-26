@@ -34,20 +34,30 @@ export function ReviewReportModal({ open, reviewId, onClose, onDone }) {
 	}
 
 	return (
-		<div className="report-modal-backdrop" role="presentation" onClick={onClose}>
+		<div
+			className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center"
+			role="presentation"
+			onClick={onClose}
+		>
 			<div
-				className="report-modal"
+				className="bg-card rounded-xl p-6 max-w-md w-full mx-4 shadow-xl"
 				role="dialog"
 				aria-modal="true"
 				aria-labelledby="report-modal-title"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<h3 id="report-modal-title">Reportar reseña</h3>
-				<p className="muted text-sm">Indica el motivo. Revisaremos el caso.</p>
-				<form onSubmit={onSubmit} className="review-form">
-					<label className="review-field">
+				<h3 id="report-modal-title" className="text-lg font-bold text-foreground mb-1">
+					Reportar reseña
+				</h3>
+				<p className="text-muted-foreground text-sm mb-3">Indica el motivo. Revisaremos el caso.</p>
+				<form onSubmit={onSubmit} className="flex flex-col gap-3">
+					<label className="flex flex-col gap-1.5 text-sm">
 						<span>Motivo</span>
-						<select value={reason} onChange={(e) => setReason(e.target.value)}>
+						<select
+							className="h-10 w-full rounded-xl border border-input bg-background px-3 py-2.5 font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							value={reason}
+							onChange={(e) => setReason(e.target.value)}
+						>
 							{REPORT_REASON_OPTIONS.map((o) => (
 								<option key={o.value} value={o.value}>
 									{o.label}
@@ -56,9 +66,10 @@ export function ReviewReportModal({ open, reviewId, onClose, onDone }) {
 						</select>
 					</label>
 					{reason === 'otro' ? (
-						<label className="review-field">
+						<label className="flex flex-col gap-1.5 text-sm">
 							<span>Detalle (obligatorio)</span>
 							<textarea
+								className="w-full rounded-xl border border-input bg-background px-3 py-2.5 font-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 								value={otherText}
 								onChange={(e) => setOtherText(e.target.value)}
 								rows={3}
@@ -67,12 +78,25 @@ export function ReviewReportModal({ open, reviewId, onClose, onDone }) {
 							/>
 						</label>
 					) : null}
-					{error ? <p className="error review-msg">{error}</p> : null}
-					<div className="report-modal-actions">
-						<button type="button" className="btn-sm" onClick={onClose} disabled={submitting}>
+					{error ? (
+						<p className="rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive">
+							{error}
+						</p>
+					) : null}
+					<div className="flex gap-2 justify-end mt-2">
+						<button
+							type="button"
+							className="px-2.5 py-1 text-[0.82rem] rounded-lg border border-border bg-white dark:bg-card cursor-pointer font-semibold disabled:opacity-60"
+							onClick={onClose}
+							disabled={submitting}
+						>
 							Cancelar
 						</button>
-						<button type="submit" className="review-submit" disabled={submitting}>
+						<button
+							type="submit"
+							className="rounded-xl bg-primary px-5 py-3 font-bold text-primary-foreground cursor-pointer hover:bg-primary/90 disabled:opacity-65 disabled:cursor-not-allowed border-0"
+							disabled={submitting}
+						>
 							{submitting ? 'Enviando…' : 'Enviar reporte'}
 						</button>
 					</div>

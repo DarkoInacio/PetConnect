@@ -25,5 +25,11 @@ export function PetPhoto({ petId, alt, className }) {
 	}, [petId]);
 
 	if (err || !src) return null;
-	return <img src={src} alt={alt || 'Mascota'} className={className || 'pet-photo-thumb'} />;
+	return (
+		<img
+			src={src}
+			alt={alt || 'Mascota'}
+			className={className || 'w-12 h-12 object-cover rounded-lg shrink-0'}
+		/>
+	);
 }

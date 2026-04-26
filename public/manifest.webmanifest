@@ -1,0 +1,25 @@
+{
+  "name": "PetConnect",
+  "short_name": "PetConnect",
+  "description": "PetConnect: conecta clínicas veterinarias con dueños. Reservas, mapa y ficha de salud de tu mascota.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0f7668",
+  "icons": [
+    {
+      "src": "/chat-fab-icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/chat-fab-icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ]
+}
+
