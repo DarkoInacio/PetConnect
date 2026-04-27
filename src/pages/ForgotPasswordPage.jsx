@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 export function ForgotPasswordPage() {
 	const [email, setEmail] = useState('');
 	const [message, setMessage] = useState('');
+	const [resetUrl, setResetUrl] = useState('');
 	const [error, setError] = useState('');
 	const [submitting, setSubmitting] = useState(false);
 
@@ -14,10 +15,12 @@ export function ForgotPasswordPage() {
 		e.preventDefault();
 		setError('');
 		setMessage('');
+		setResetUrl('');
 		setSubmitting(true);
 		try {
 			const data = await forgotPassword(email.trim());
 			setMessage(data.message || 'Revisa tu correo.');
+			setResetUrl(typeof data.resetUrl === 'string' ? data.resetUrl : '');
 		} catch (err) {
 			setError(err.response?.data?.message || 'No se pudo procesar la solicitud.');
 		} finally {
@@ -72,13 +75,21 @@ export function ForgotPasswordPage() {
 						</div>
 
 						{message ? (
-							<p
+							<div
 								className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 px-3.5 py-3 text-sm text-emerald-700 dark:text-emerald-400"
 								role="status"
 								aria-live="polite"
 							>
-								{message}
-							</p>
+								<p>{message}</p>
+								{resetUrl ? (
+									<a
+										href={resetUrl}
+										className="inline-block mt-2 font-semibold text-primary hover:underline break-all"
+									>
+										Abrir enlace de recuperación
+									</a>
+								) : null}
+							</div>
 						) : null}
 
 						{error ? (
