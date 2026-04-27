@@ -24,7 +24,7 @@ import {
 	fetchReviewEligibility,
 	updateMyReview
 } from '../services/reviews';
-import { formatChileDateTimeRange } from '../constants/chileTime';
+import { addCalendarDaysYmd, formatChileDateTimeRange, getYmdInChile } from '../constants/chileTime';
 import { hasRole } from '../lib/userRoles';
 import {
 	ProviderClinicCalendar,
@@ -68,6 +68,11 @@ function buildSlotsListParams(agFrom, agTo) {
 	if (f || t) {
 		p.fromYmd = f || t;
 		p.toYmd = t || f;
+	} else {
+		// Rango por defecto alineado a Chile (mismo criterio que generate) para no depender del huso del PC.
+		const start = getYmdInChile(new Date()) || toYmdLocal(new Date());
+		p.fromYmd = start;
+		p.toYmd = addCalendarDaysYmd(start, 120);
 	}
 	return p;
 }
@@ -94,11 +99,10 @@ export function ProviderDashboardPage() {
 	const [loadingBookings, setLoadingBookings] = useState(true);
 	const [loadingSlots, setLoadingSlots] = useState(true);
 	const [error, setError] = useState('');
-	const [omitsFrom, setOmitsFrom] = useState(() => toYmdLocal(new Date()));
+	const [omitsFrom, setOmitsFrom] = useState(() => getYmdInChile(new Date()) || toYmdLocal(new Date()));
 	const [omitsTo, setOmitsTo] = useState(() => {
-		const d = new Date();
-		d.setDate(d.getDate() + 56);
-		return toYmdLocal(d);
+		const start = getYmdInChile(new Date()) || toYmdLocal(new Date());
+		return addCalendarDaysYmd(start, 56);
 	});
 	const [agendaMsg, setAgendaMsg] = useState('');
 	const [agendaError, setAgendaError] = useState('');
@@ -129,7 +133,9 @@ export function ProviderDashboardPage() {
 	const filteredOfertaSlots = useMemo(() => {
 		if (user?.providerType !== 'veterinaria') return [];
 		const list = Array.isArray(slots) ? slots : [];
-		if (!ofertaLineFilter) return list;
+		// Los slots del API suelen no traer clinicServiceId; filtrar por línea dejaría 0 tramos.
+		const anySlotHasLine = list.some((s) => getSlotClinicServiceId(s) !== '');
+		if (!ofertaLineFilter || !anySlotHasLine) return list;
 		const want = String(ofertaLineFilter);
 		return list.filter((s) => getSlotClinicServiceId(s) === want);
 	}, [slots, ofertaLineFilter, user?.providerType]);
@@ -143,10 +149,9 @@ export function ProviderDashboardPage() {
 	const fillAgendaRange = useCallback(
 		/** @param {number} weekCount */
 		async (weekCount = 8) => {
-			const from = toYmdLocal(new Date());
-			const t = new Date();
-			t.setDate(t.getDate() + 7 * weekCount);
-			const toD = toYmdLocal(t);
+			// Debe coincidir con "hoy" Chile del backend o generate devuelve 400 (fechas pasadas).
+			const from = getYmdInChile(new Date()) || toYmdLocal(new Date());
+			const toD = addCalendarDaysYmd(from, 7 * weekCount);
 			return generateAgendaSlots({ fromDate: from, toDate: toD });
 		},
 		[]
@@ -187,10 +192,14 @@ export function ProviderDashboardPage() {
 		(async () => {
 			try {
 				setLoadingSlots(true);
+				setAgendaError('');
 				const s = await listMyAgendaSlots(c.signal, buildSlotsListParams('', ''));
 				setSlots(Array.isArray(s.slots) ? s.slots : []);
-			} catch {
+			} catch (err) {
+				if (err.name === 'CanceledError' || err.name === 'AbortError') return;
 				setSlots([]);
+				const msg = err.response?.data?.message;
+				if (msg) setAgendaError(String(msg));
 			} finally {
 				setLoadingSlots(false);
 			}
@@ -257,8 +266,15 @@ export function ProviderDashboardPage() {
 		(async () => {
 			try {
 				await fillAgendaRange(8);
-			} catch {
-				/* clínica nueva o aún sin líneas: omitir */
+			} catch (err) {
+				const msg = err.response?.data?.message || err.message;
+				if (msg && alive) {
+					setAgendaError(
+						typeof msg === 'string'
+							? msg
+							: 'No se pudo generar la agenda automáticamente. Usa «Rellenar agenda ahora» en Mantenimiento.'
+					);
+				}
 			}
 			if (!alive) return;
 			try {
@@ -370,7 +386,7 @@ export function ProviderDashboardPage() {
 		e.preventDefault();
 		setAgendaMsg('');
 		setAgendaError('');
-		const from = omitsFrom.trim() || toYmdLocal(new Date());
+		const from = omitsFrom.trim() || getYmdInChile(new Date()) || toYmdLocal(new Date());
 		const to = omitsTo.trim() || from;
 		try {
 			const res = await clearOmittedAgendaSlots({ from, to });

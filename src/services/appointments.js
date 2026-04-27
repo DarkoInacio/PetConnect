@@ -19,7 +19,11 @@ export async function fetchAvailableSlots(providerId, dateYmd, optionsOrSignal, 
 	const params = {};
 	if (dateYmd) params.date = dateYmd;
 	if (options && options.clinicServiceId) params.clinicServiceId = options.clinicServiceId;
-	const { data } = await api.get(`/appointments/providers/${providerId}/available-slots`, { params, signal: sig });
+	const { data } = await api.get(`/appointments/providers/${providerId}/available-slots`, {
+		params,
+		signal: sig,
+		headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' }
+	});
 	return data;
 }
 

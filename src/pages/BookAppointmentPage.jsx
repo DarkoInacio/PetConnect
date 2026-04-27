@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { createSlotAppointment, fetchAvailableSlots } from '../services/appointments';
 import { fetchProviderPublicProfile, getProviderProfilePath } from '../services/providers';
 import { listPets } from '../services/pets';
-import { formatTimeInChile } from '../constants/chileTime';
+import { addCalendarDaysYmd, formatTimeInChile, getYmdInChile } from '../constants/chileTime';
 import { hasRole } from '../lib/userRoles';
 import { ArrowRight, Calendar, Check, ChevronLeft, Clock, Moon, PawPrint, Stethoscope, Sun, Sunset } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,9 +31,14 @@ function ydParts(ymd) {
 function formatDayShort(ymd) {
 	if (!ymd) return '';
 	const [y, m, d] = ydParts(ymd);
-	const dt = new Date(y, m - 1, d, 12, 0, 0, 0);
+	const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
 	if (Number.isNaN(dt.getTime())) return ymd;
-	return new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }).format(dt);
+	return new Intl.DateTimeFormat('es-CL', {
+		timeZone: CL_TZ,
+		weekday: 'long',
+		day: 'numeric',
+		month: 'long'
+	}).format(dt);
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────────────
@@ -51,9 +56,13 @@ function petEmoji(species) {
 
 function getDayParts(ymd) {
 	const [y, m, d] = ymd.split('-').map(Number);
-	const dt = new Date(y, m - 1, d, 12);
-	const dayShort = new Intl.DateTimeFormat('es-CL', { weekday: 'short' }).format(dt).replace('.', '');
-	const monthShort = new Intl.DateTimeFormat('es-CL', { month: 'short' }).format(dt).replace('.', '');
+	const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+	const dayShort = new Intl.DateTimeFormat('es-CL', { timeZone: CL_TZ, weekday: 'short' })
+		.format(dt)
+		.replace('.', '');
+	const monthShort = new Intl.DateTimeFormat('es-CL', { timeZone: CL_TZ, month: 'short' })
+		.format(dt)
+		.replace('.', '');
 	return { dayShort, dayNum: d, monthShort };
 }
 
@@ -185,7 +194,7 @@ export function BookAppointmentPage() {
 
 	const [provider, setProvider] = useState(null);
 	const [loadError, setLoadError] = useState('');
-	const [dateYmd, setDateYmd] = useState(() => toYmdLocal(new Date()));
+	const [dateYmd, setDateYmd] = useState(() => getYmdInChile(new Date()) || toYmdLocal(new Date()));
 	const [clinicServiceId, setClinicServiceId] = useState('');
 	const [slots, setSlots] = useState([]);
 	const [slotsLoading, setSlotsLoading] = useState(false);
@@ -205,14 +214,15 @@ export function BookAppointmentPage() {
 	const [formOk, setFormOk] = useState('');
 
 	const dayScrollRef = useRef(null);
-	const minDateYmd = toYmdLocal(new Date());
+	/** Hoy en calendario Chile (mismo criterio que el API al filtrar tramos). */
+	const minDateYmd = getYmdInChile(new Date()) || toYmdLocal(new Date());
 
-	/* Next 21 days for the scroll picker — computed once */
-	const futureDays = useMemo(
-		() => Array.from({ length: DAYS_TO_SHOW }, (_, i) => ymdAddDays(minDateYmd, i)),
+	/* Próximos 21 días civiles Chile — alineado con tramos generados en hora Chile */
+	const futureDays = useMemo(() => {
+		const start = getYmdInChile(new Date()) || toYmdLocal(new Date());
+		return Array.from({ length: DAYS_TO_SHOW }, (_, i) => addCalendarDaysYmd(start, i));
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[]
-	);
+	}, []);
 
 	/* Scroll selected day pill into view */
 	useEffect(() => {
@@ -224,8 +234,13 @@ export function BookAppointmentPage() {
 	const effectiveClinicServiceId = useMemo(() => {
 		const list = provider?.clinicServices;
 		if (!Array.isArray(list) || list.length === 0) return '';
-		if (list.length === 1) return String(list[0].id);
-		return clinicServiceId && String(clinicServiceId).trim() ? String(clinicServiceId) : '';
+		const rowId = (c) => {
+			if (!c) return '';
+			const v = c.id ?? c._id;
+			return v != null && String(v).trim() !== '' ? String(v) : '';
+		};
+		if (list.length === 1) return rowId(list[0]);
+		return clinicServiceId && String(clinicServiceId).trim() ? String(clinicServiceId).trim() : '';
 	}, [provider, clinicServiceId]);
 
 	const selectedSlot = useMemo(
@@ -239,7 +254,7 @@ export function BookAppointmentPage() {
 			return selectedSlot.clinicServiceId.displayName || '';
 		}
 		const list = provider?.clinicServices;
-		const svc = list?.find((c) => String(c.id) === effectiveClinicServiceId);
+		const svc = list?.find((c) => String(c.id ?? c._id) === effectiveClinicServiceId);
 		return svc?.displayName || '';
 	}, [selectedSlot, provider, effectiveClinicServiceId]);
 
@@ -262,7 +277,7 @@ export function BookAppointmentPage() {
 	/* Sidebar summary info */
 	const singleLine = provider?.clinicServices?.length === 1 ? provider.clinicServices[0] : null;
 	const effectiveLine = provider?.clinicServices?.find(
-		(c) => String(c.id) === effectiveClinicServiceId
+		(c) => String(c.id ?? c._id) === effectiveClinicServiceId
 	);
 	const summaryServiceName = singleLine?.displayName || effectiveLine?.displayName || '';
 	const summaryServiceDuration = singleLine?.slotDurationMinutes || effectiveLine?.slotDurationMinutes || 30;
@@ -289,7 +304,7 @@ export function BookAppointmentPage() {
 		if (!provider?.clinicServices?.length) return;
 		if (provider.clinicServices.length > 1) {
 			setClinicServiceId((prev) => {
-				if (prev && provider.clinicServices.some((c) => String(c.id) === prev)) return prev;
+				if (prev && provider.clinicServices.some((c) => String(c.id ?? c._id) === prev)) return prev;
 				return '';
 			});
 		} else {
@@ -327,10 +342,6 @@ export function BookAppointmentPage() {
 			provider?.providerType === 'veterinaria' && effectiveClinicServiceId
 				? { clinicServiceId: effectiveClinicServiceId }
 				: undefined;
-		if (provider?.providerType === 'veterinaria' && !opt?.clinicServiceId) {
-			setSlots([]);
-			return;
-		}
 		setSlotsLoading(true);
 		setSlotsError('');
 		try {
@@ -535,15 +546,16 @@ export function BookAppointmentPage() {
 							>
 								<div className="flex flex-col gap-2" role="radiogroup" aria-label="Línea de atención">
 									{provider.clinicServices.map((c) => {
-										const isSelected = clinicServiceId === String(c.id);
+										const cid = String(c.id ?? c._id ?? '');
+										const isSelected = clinicServiceId === cid;
 										return (
 											<button
-												key={c.id}
+												key={cid || c.displayName}
 												type="button"
 												role="radio"
 												aria-checked={isSelected}
 												onClick={() => {
-													setClinicServiceId(String(c.id));
+													setClinicServiceId(cid);
 													setSelectedSlotId('');
 												}}
 												className={cn(

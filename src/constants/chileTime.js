@@ -75,6 +75,25 @@ export function getYmdInChile(isoOrDate) {
 	}).format(d);
 }
 
+/**
+ * Suma días a un YYYY-MM-DD (gregoriano, mediodía UTC para evitar bordes).
+ * Debe coincidir con la lógica del backend para el carrusel de reservas.
+ * @param {string} ymd
+ * @param {number} deltaDays
+ * @returns {string}
+ */
+export function addCalendarDaysYmd(ymd, deltaDays) {
+	const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+	if (!DATE_RE.test(ymd)) return ymd;
+	const [y, mo, d] = ymd.split('-').map(Number);
+	const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0, 0));
+	dt.setUTCDate(dt.getUTCDate() + deltaDays);
+	const yy = dt.getUTCFullYear();
+	const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+	const dd = String(dt.getUTCDate()).padStart(2, '0');
+	return `${yy}-${mm}-${dd}`;
+}
+
 export function formatChileDateTimeRange(startAt, endAt) {
 	if (!startAt) return '—';
 	try {
