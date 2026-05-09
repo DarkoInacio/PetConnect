@@ -90,7 +90,7 @@ export function AdminReviewReportsPage() {
 					← Volver
 				</Link>
 				<p className="rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive">
-					Solo administradores.
+					Solo cuentas con rol administrador pueden acceder.
 				</p>
 			</div>
 		);
@@ -119,7 +119,7 @@ export function AdminReviewReportsPage() {
 				className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline min-h-11 mb-4"
 				to="/admin/proveedores"
 			>
-				← Admin proveedores
+				← Gestión de proveedores
 			</Link>
 
 			{/* Page header */}

@@ -51,7 +51,7 @@ function navItemsForUser(user) {
 			when: (u) => hasRole(u, 'dueno'),
 			icon: LayoutGrid
 		},
-		{ label: 'Admin proveedores', to: '/admin/proveedores', when: (u) => hasRole(u, 'admin') },
+		{ label: 'Gestión de proveedores', to: '/admin/proveedores', when: (u) => hasRole(u, 'admin') },
 		{ label: 'Reportes de reseñas', to: '/admin/resenas-reportes', when: (u) => hasRole(u, 'admin') }
 	];
 	return all.filter((i) => i.when(user));

@@ -149,7 +149,7 @@ export function OfferProviderServicesPage() {
 					<div className="p-5 sm:p-6">
 						<p className="text-muted-foreground text-[0.95rem] max-w-[52ch] m-0">
 							Usa el <strong>mismo correo y contraseña</strong> que como dueño. Añadimos el rol
-							proveedor a tu cuenta; un admin debe aprobarlo.
+							proveedor a tu cuenta; un administrador debe aprobarlo.
 						</p>
 						<div className="grid grid-cols-1 gap-3 mt-5 sm:grid-cols-3">
 							{OPTIONS.map((opt) => (
