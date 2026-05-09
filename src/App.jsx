@@ -25,6 +25,10 @@ import { RegisterProviderPage } from './pages/RegisterProviderPage';
 import { RequestServicePage } from './pages/RequestServicePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { VetClinicalPage } from './pages/VetClinicalPage';
+import { VetClinicAdminPage } from './pages/VetClinicAdminPage';
+import { VetPatientsPage } from './pages/VetPatientsPage';
+import { VetPetMedicalPage } from './pages/VetPetMedicalPage';
+import { VetEncounterDetailPage } from './pages/VetEncounterDetailPage';
 import { ChatWidget } from './components/ChatWidget';
 
 // App.css eliminado — todos los estilos migrados a Tailwind v4
@@ -73,6 +77,10 @@ function App() {
 				<Route path='/admin/proveedores' element={<AdminProvidersPage />} />
 				<Route path='/admin/resenas-reportes' element={<AdminReviewReportsPage />} />
 				<Route path='/proveedor/atencion-clinica' element={<VetClinicalPage />} />
+				<Route path='/proveedor/admin-citas' element={<VetClinicAdminPage />} />
+				<Route path='/proveedor/pacientes' element={<VetPatientsPage />} />
+				<Route path='/proveedor/pacientes/:petId/ficha' element={<VetPetMedicalPage />} />
+				<Route path='/proveedor/pacientes/:petId/atencion/:encounterId' element={<VetEncounterDetailPage />} />
 				<Route path='/agendar' element={<BookAppointmentPage />} />
 				<Route path='/solicitar-servicio' element={<RequestServicePage />} />
 				<Route path='/proveedores/perfil/:tipo/:slug' element={<ProviderProfilePage />} />

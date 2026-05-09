@@ -61,3 +61,26 @@ export async function addEncounterRetractionComment(encounterId, text) {
 	const { data } = await api.post(`/vet/clinical-encounters/${encounterId}/retractions`, { text });
 	return data;
 }
+
+export async function fetchVetPatients(params = {}, signal) {
+	const { data } = await api.get('/vet/patients', { params, signal });
+	return data;
+}
+
+export async function listVetClinicalEncounters(petId, signal) {
+	const { data } = await api.get(`/vet/pets/${petId}/clinical-encounters`, { signal });
+	return data;
+}
+
+export async function getVetClinicalEncounterDetail(petId, encounterId, signal) {
+	const { data } = await api.get(`/vet/pets/${petId}/clinical-encounters/${encounterId}`, { signal });
+	return data;
+}
+
+export async function downloadVetEncounterAttachmentBlob(petId, encounterId, index, signal) {
+	const res = await api.get(
+		`/vet/pets/${petId}/clinical-encounters/${encounterId}/attachments/${index}`,
+		{ responseType: 'blob', signal }
+	);
+	return res.data;
+}

@@ -67,3 +67,11 @@ export async function completeVetClinicAppointmentAsProvider(appointmentId) {
 	const { data } = await api.patch(`/appointments/${appointmentId}/provider/complete-vet`);
 	return data;
 }
+
+/** Notas solo para veterinarias (backend verifica tipo de cuenta). */
+export async function patchAppointmentInternalNotes(appointmentId, internalNotes) {
+	const { data } = await api.patch(`/appointments/${appointmentId}/provider/internal-notes`, {
+		internalNotes
+	});
+	return data;
+}

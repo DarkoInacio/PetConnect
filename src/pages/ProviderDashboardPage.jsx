@@ -563,7 +563,7 @@ export function ProviderDashboardPage() {
 		if (!isVet) return false;
 		if (row.kind !== 'appointment') return false;
 		if (!petIdString(row)) return false;
-		return ['confirmed', 'completed'].includes(row.status);
+		return row.status === 'completed';
 	}
 
 	function closeClientReviewModal() {
@@ -668,6 +668,24 @@ export function ProviderDashboardPage() {
 						<Star className='w-4 h-4' />
 						Reseñas
 					</Link>
+					{isVet ? (
+						<>
+							<Link
+								className='inline-flex h-10 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold text-foreground no-underline hover:bg-muted transition-colors gap-1.5'
+								to='/proveedor/pacientes'
+							>
+								<Stethoscope className='w-4 h-4' />
+								Pacientes
+							</Link>
+							<Link
+								className='inline-flex h-10 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 px-4 text-sm font-bold text-primary no-underline hover:bg-primary/15 transition-colors gap-1.5'
+								to='/proveedor/admin-citas'
+							>
+								<CalendarDays className='w-4 h-4' />
+								Admin citas
+							</Link>
+						</>
+					) : null}
 				</div>
 			</header>
 		</div>
@@ -960,7 +978,7 @@ export function ProviderDashboardPage() {
 																	className='inline-flex h-8 items-center px-3 rounded-lg border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted transition-colors'
 																	to={`/proveedor/atencion-clinica?appointmentId=${encodeURIComponent(String(row.id))}&petId=${encodeURIComponent(pid)}`}
 																>
-																	Atención clínica
+																	Registrar en ficha médica
 																</Link>
 															) : null}
 															{showClientReview ? (
