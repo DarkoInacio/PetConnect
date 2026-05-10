@@ -13,6 +13,8 @@ import {
 } from '../services/admin';
 import { runReminders24h } from '../services/adminJobs';
 import { resolveBackendAssetUrl } from '../services/api';
+import { isAdministrator } from '../lib/userRoles';
+import { AdminTextActionModal } from '../components/AdminTextActionModal';
 import { Button } from '@/components/ui/button';
 import {
 	ShieldCheck,
@@ -41,10 +43,6 @@ function formatDt(iso) {
 	}
 }
 
-function isAdminUser(user) {
-	return user?.role === 'admin';
-}
-
 export function AdminProvidersPage() {
 	const { user, loading: authLoading } = useAuth();
 	const [pendingData, setPendingData] = useState(null);
@@ -53,8 +51,17 @@ export function AdminProvidersPage() {
 	const [auditData, setAuditData] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
-	const [actionMsg, setActionMsg] = useState('');
+	const [notice, setNotice] = useState(null);
 	const [jobLoading, setJobLoading] = useState(false);
+
+	const [rejectModal, setRejectModal] = useState({ open: false, userId: null, name: '' });
+	const [rejectReason, setRejectReason] = useState('');
+	const [rejectErr, setRejectErr] = useState('');
+	const [rejectSubmitting, setRejectSubmitting] = useState(false);
+
+	const [suspendModal, setSuspendModal] = useState({ open: false, userId: null, name: '' });
+	const [suspendReason, setSuspendReason] = useState('');
+	const [suspendSubmitting, setSuspendSubmitting] = useState(false);
 
 	const reloadAll = useCallback(async () => {
 		const [p, a, s, logs] = await Promise.all([
@@ -70,7 +77,7 @@ export function AdminProvidersPage() {
 	}, []);
 
 	useEffect(() => {
-		if (authLoading || !user || !isAdminUser(user)) return;
+		if (authLoading || !user || !isAdministrator(user)) return;
 		let cancelled = false;
 		(async () => {
 			try {
@@ -100,7 +107,7 @@ export function AdminProvidersPage() {
 		return <Navigate to='/login' replace state={{ from: '/admin/proveedores' }} />;
 	}
 
-	if (!isAdminUser(user)) {
+	if (!isAdministrator(user)) {
 		return (
 			<div className="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom,0px))]">
 				<Link
@@ -110,7 +117,8 @@ export function AdminProvidersPage() {
 					← Inicio
 				</Link>
 				<p className="rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive">
-					El panel de administración requiere iniciar sesión con una cuenta de rol administrador (token JWT).
+					El panel de administración requiere iniciar sesión con una cuenta de rol administrador (JWT con rol{' '}
+					<code className="text-xs">admin</code>).
 				</p>
 			</div>
 		);
@@ -122,62 +130,97 @@ export function AdminProvidersPage() {
 	const suspendedItems = suspendedData?.items || [];
 	const auditItems = auditData?.items || [];
 
-	async function flash(msg) {
-		setActionMsg(msg);
+	async function flashSuccess(msg) {
+		setNotice({ kind: 'success', text: msg });
 		await reloadAll();
 	}
 
+	function openRejectModal(p) {
+		setRejectErr('');
+		setRejectReason('');
+		setRejectModal({ open: true, userId: p._id, name: `${p.name || ''} ${p.lastName || ''}`.trim() });
+	}
+
+	function closeRejectModal() {
+		if (rejectSubmitting) return;
+		setRejectModal({ open: false, userId: null, name: '' });
+		setRejectReason('');
+		setRejectErr('');
+	}
+
+	async function confirmReject() {
+		const trimmed = rejectReason.trim();
+		if (!trimmed) {
+			setRejectErr('El motivo del rechazo es obligatorio.');
+			return;
+		}
+		setRejectErr('');
+		setRejectSubmitting(true);
+		setNotice(null);
+		try {
+			await rejectProvider(rejectModal.userId, trimmed);
+			closeRejectModal();
+			await flashSuccess('Proveedor rechazado. Se envió el motivo por correo.');
+		} catch (err) {
+			setNotice({ kind: 'error', text: err.response?.data?.message || 'No se pudo rechazar.' });
+		} finally {
+			setRejectSubmitting(false);
+		}
+	}
+
+	function openSuspendModal(p) {
+		setSuspendReason('');
+		setSuspendModal({ open: true, userId: p._id, name: `${p.name || ''} ${p.lastName || ''}`.trim() });
+	}
+
+	function closeSuspendModal() {
+		if (suspendSubmitting) return;
+		setSuspendModal({ open: false, userId: null, name: '' });
+		setSuspendReason('');
+	}
+
+	async function confirmSuspend() {
+		setSuspendSubmitting(true);
+		setNotice(null);
+		try {
+			await suspendProvider(suspendModal.userId, suspendReason.trim());
+			closeSuspendModal();
+			await flashSuccess('Perfil desactivado: ya no aparece en mapa ni buscador.');
+		} catch (err) {
+			setNotice({ kind: 'error', text: err.response?.data?.message || 'No se pudo desactivar.' });
+		} finally {
+			setSuspendSubmitting(false);
+		}
+	}
+
 	async function onApprove(id) {
-		setActionMsg('');
+		setNotice(null);
 		try {
 			await approveProvider(id);
-			await flash('Proveedor aprobado. Se envió correo de activación.');
+			await flashSuccess('Proveedor aprobado. Se envió correo de activación y el perfil queda visible.');
 		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo aprobar.');
-		}
-	}
-
-	async function onReject(id) {
-		const reason = window.prompt('Motivo del rechazo (obligatorio):');
-		if (!reason || !reason.trim()) return;
-		setActionMsg('');
-		try {
-			await rejectProvider(id, reason.trim());
-			await flash('Proveedor rechazado. Se notificó por correo.');
-		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo rechazar.');
-		}
-	}
-
-	async function onSuspend(id) {
-		const note = window.prompt('Motivo de la desactivación temporal (opcional):') || '';
-		setActionMsg('');
-		try {
-			await suspendProvider(id, note.trim());
-			await flash('Perfil desactivado: ya no aparece en mapa ni buscador.');
-		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo desactivar.');
+			setNotice({ kind: 'error', text: err.response?.data?.message || 'No se pudo aprobar.' });
 		}
 	}
 
 	async function onReactivate(id) {
-		setActionMsg('');
+		setNotice(null);
 		try {
 			await reactivateProvider(id);
-			await flash('Proveedor reactivado.');
+			await flashSuccess('Proveedor reactivado.');
 		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo reactivar.');
+			setNotice({ kind: 'error', text: err.response?.data?.message || 'No se pudo reactivar.' });
 		}
 	}
 
 	async function onRunReminders() {
 		setJobLoading(true);
-		setActionMsg('');
+		setNotice(null);
 		try {
 			const res = await runReminders24h();
-			setActionMsg(res.message || 'Recordatorios ejecutados.');
+			setNotice({ kind: 'success', text: res.message || 'Recordatorios ejecutados.' });
 		} catch (err) {
-			setActionMsg(err.response?.data?.message || 'No se pudo ejecutar el job.');
+			setNotice({ kind: 'error', text: err.response?.data?.message || 'No se pudo ejecutar el job.' });
 		} finally {
 			setJobLoading(false);
 		}
@@ -232,9 +275,16 @@ export function AdminProvidersPage() {
 				</Button>
 			</section>
 
-			{actionMsg ? (
-				<div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 px-3.5 py-3 text-sm text-emerald-700 dark:text-emerald-400 font-medium mb-4">
-					{actionMsg}
+			{notice ? (
+				<div
+					className={
+						notice.kind === 'error'
+							? 'rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive font-medium mb-4'
+							: 'rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-800 px-3.5 py-3 text-sm text-emerald-700 dark:text-emerald-400 font-medium mb-4'
+					}
+					role={notice.kind === 'error' ? 'alert' : 'status'}
+				>
+					{notice.text}
 				</div>
 			) : null}
 			{error ? (
@@ -345,7 +395,7 @@ export function AdminProvidersPage() {
 												<button
 													type='button'
 													className="inline-flex h-8 items-center gap-1 px-3 rounded-lg border border-red-200 bg-white dark:bg-card text-red-800 dark:text-red-300 dark:border-red-900 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
-													onClick={() => onReject(p._id)}
+													onClick={() => openRejectModal(p)}
 												>
 													<X size={12} aria-hidden /> Rechazar
 												</button>
@@ -392,11 +442,7 @@ export function AdminProvidersPage() {
 											<button
 												type="button"
 												className="inline-flex h-8 items-center gap-1 px-3 rounded-lg border border-amber-700/40 bg-amber-50 dark:bg-amber-950/30 text-amber-950 dark:text-amber-200 text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-950/50 cursor-pointer"
-												onClick={() => {
-													if (window.confirm('¿Desactivar temporalmente este perfil público?')) {
-														onSuspend(p._id);
-													}
-												}}
+												onClick={() => openSuspendModal(p)}
 											>
 												<Ban size={12} aria-hidden /> Desactivar
 											</button>
@@ -490,7 +536,7 @@ export function AdminProvidersPage() {
 											<td className={TD_CLS}>{actorLabel}</td>
 											<td className={`${TD_CLS} text-muted-foreground text-xs max-w-md`}>
 												<pre className="m-0 font-sans whitespace-pre-wrap break-all">
-													{JSON.stringify(row.metadata || {}, null, 0)}
+													{JSON.stringify(row.metadata || {}, null, 2)}
 												</pre>
 											</td>
 										</tr>
@@ -501,6 +547,48 @@ export function AdminProvidersPage() {
 					</div>
 				)}
 			</section>
+
+			<AdminTextActionModal
+				open={rejectModal.open}
+				title="Rechazar solicitud de proveedor"
+				description={
+					rejectModal.name
+						? `Se notificará por correo a ${rejectModal.name}. El motivo es obligatorio.`
+						: 'El motivo es obligatorio y se enviará por correo.'
+				}
+				textareaLabel="Motivo del rechazo"
+				placeholder="Explica con claridad el motivo (visible para el solicitante)."
+				required
+				maxLength={2000}
+				confirmLabel="Rechazar y notificar"
+				submitting={rejectSubmitting}
+				errorText={rejectErr}
+				value={rejectReason}
+				onChange={setRejectReason}
+				onClose={closeRejectModal}
+				onSubmit={() => void confirmReject()}
+			/>
+
+			<AdminTextActionModal
+				open={suspendModal.open}
+				title="Desactivar perfil público"
+				description={
+					suspendModal.name
+						? `${suspendModal.name} dejará de aparecer en el mapa y el buscador hasta que lo reactives.`
+						: 'El proveedor dejará de aparecer en el mapa y el buscador.'
+				}
+				textareaLabel="Motivo (opcional)"
+				placeholder="Ej. incumplimiento temporal, revisión de documentos…"
+				required={false}
+				maxLength={2000}
+				confirmLabel="Desactivar"
+				submitting={suspendSubmitting}
+				errorText=""
+				value={suspendReason}
+				onChange={setSuspendReason}
+				onClose={closeSuspendModal}
+				onSubmit={() => void confirmSuspend()}
+			/>
 		</div>
 	);
 }

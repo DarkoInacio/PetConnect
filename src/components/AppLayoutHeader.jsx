@@ -74,7 +74,7 @@ export function AppLayoutHeader() {
 	return (
 		<header
 			role="banner"
-			className="sticky top-0 z-[1100] w-full min-h-12 border-b border-emerald-950/20 bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/90 text-slate-50 shadow-[0_1px_0_rgba(45,212,191,0.18)] supports-[backdrop-filter]:backdrop-blur-sm"
+			className="sticky top-0 z-[1100] w-full min-h-12 border-b border-primary/30 bg-foreground text-background shadow-[0_1px_0_hsl(var(--primary)/0.22)] supports-[backdrop-filter]:backdrop-blur-sm dark:border-primary/25 dark:bg-card dark:text-card-foreground dark:shadow-[0_1px_0_hsl(var(--primary)/0.15)]"
 		>
 			<div className="mx-auto flex min-h-[3rem] max-w-[1200px] items-center justify-between gap-2 px-3 sm:px-4">
 				<div className="flex min-w-0 flex-1 items-center gap-2">
@@ -83,7 +83,7 @@ export function AppLayoutHeader() {
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-11 w-11 shrink-0 text-slate-200 ring-offset-slate-900 hover:bg-slate-800/90 hover:text-teal-200"
+								className="h-11 w-11 shrink-0 text-inherit ring-offset-background hover:bg-background/15 hover:text-inherit dark:ring-offset-card dark:hover:bg-foreground/10"
 								aria-label="Abrir menú de navegación"
 							>
 								<Menu className="h-5 w-5" aria-hidden />
@@ -91,12 +91,12 @@ export function AppLayoutHeader() {
 						</SheetTrigger>
 						<SheetContent
 							side="left"
-							className="w-[min(20rem,88vw)] border-r border-emerald-500/15 bg-slate-50 text-slate-900"
+							className="w-[min(20rem,88vw)] border-r border-border bg-card text-card-foreground"
 						>
 							<SheetHeader className="pr-8 text-left">
 								<SheetTitle className="text-base font-semibold">
-									<span className="text-slate-800">Pet</span>
-									<span className="text-teal-600">Connect</span>
+									<span className="text-foreground">Pet</span>
+									<span className="text-primary">Connect</span>
 								</SheetTitle>
 							</SheetHeader>
 							<nav
@@ -108,7 +108,7 @@ export function AppLayoutHeader() {
 								{drawerItems.map((item) => (
 									<SheetClose asChild key={`${item.label}-${item.to}`}>
 										<Link
-											className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-slate-800 hover:bg-emerald-50/90 hover:text-teal-800"
+											className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
 											to={item.to}
 											onClick={() => closeOnNavigate(item.to)}
 										>
@@ -125,13 +125,13 @@ export function AppLayoutHeader() {
 						to="/"
 						aria-label="PetConnect, ir al inicio (mapa)"
 					>
-						<span className="text-slate-100">Pet</span>
-						<span className="text-teal-300">Connect</span>
+						<span className="text-background/95 dark:text-card-foreground">Pet</span>
+						<span className="text-primary">Connect</span>
 					</Link>
 				</div>
 
 			<div className="flex shrink-0 items-center gap-2">
-				{loading ? <span className="text-xs text-slate-400">…</span> : null}
+				{loading ? <span className="text-xs text-background/60 dark:text-muted-foreground">…</span> : null}
 
 				<Button
 					variant="ghost"
@@ -139,7 +139,7 @@ export function AppLayoutHeader() {
 					type="button"
 					onClick={toggleTheme}
 					aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-					className="h-9 w-9 shrink-0 text-slate-300 ring-offset-slate-900 hover:bg-slate-800/90 hover:text-teal-200"
+					className="h-9 w-9 shrink-0 text-inherit ring-offset-background hover:bg-background/15 dark:ring-offset-card dark:hover:bg-foreground/10"
 				>
 					{isDark ? (
 						<Sun className="h-4 w-4" aria-hidden />
@@ -159,7 +159,7 @@ export function AppLayoutHeader() {
 										? 'Menú de cuenta, ' + (user.name || 'Usuario')
 										: 'Menú de cuenta e inicio de sesión'
 								}
-								className="h-9 min-h-9 min-w-0 gap-1.5 border border-slate-600/90 bg-slate-800/95 px-2.5 text-slate-100 ring-offset-slate-900 hover:border-emerald-500/35 hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-emerald-400/50 sm:px-3"
+								className="h-9 min-h-9 min-w-0 gap-1.5 border border-background/25 bg-background/12 px-2.5 text-inherit shadow-none ring-offset-background hover:border-primary/50 hover:bg-background/22 focus-visible:ring-2 focus-visible:ring-primary/50 sm:px-3 dark:border-border dark:bg-muted/60 dark:text-card-foreground dark:ring-offset-card dark:hover:border-primary/40 dark:hover:bg-muted"
 							>
 								<User className="h-4 w-4 shrink-0" aria-hidden />
 								<span className="max-w-[7.5rem] truncate text-left text-xs sm:max-w-[10rem] sm:text-sm">

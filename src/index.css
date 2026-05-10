@@ -4,78 +4,94 @@
 /* Dark mode: clase .dark en el elemento <html> */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ─── Variables semánticas (light) ──────────────────────────────────────── */
+/* ─── Variables semánticas (light) — Pet Care cálido / orgánico ───────────── */
 :root {
-	--background: 185 32% 97%;
-	--foreground: 222 47% 11%;
-	--card: 0 0% 100%;
-	--card-foreground: 222 47% 11%;
-	--popover: 0 0% 100%;
-	--popover-foreground: 222 47% 11%;
-	--primary: 170 55% 28%;
-	--primary-foreground: 0 0% 100%;
-	--secondary: 186 24% 93%;
-	--secondary-foreground: 222 35% 18%;
-	--muted: 210 22% 94%;
-	--muted-foreground: 215 18% 32%;
-	--accent: 168 32% 92%;
-	--accent-foreground: 168 55% 20%;
-	--destructive: 0 72% 45%;
-	--destructive-foreground: 0 0% 100%;
-	--border: 210 20% 86%;
-	--input: 210 20% 90%;
-	--ring: 170 50% 36%;
+	/* #FFF9F1 crema · #F3E9DC arena · texto #3E2723 */
+	--background: 40 100% 97%;
+	--foreground: 10 28% 19%;
+	--card: 34 44% 91%;
+	--card-foreground: 10 28% 19%;
+	--popover: 40 90% 98%;
+	--popover-foreground: 10 28% 19%;
+	/* #C06C44 caramelo: L ligeramente reducido vs marca para ≥4.5:1 con texto crema */
+	--primary: 18 52% 44%;
+	--primary-foreground: 40 100% 97%;
+	--secondary: 34 38% 88%;
+	--secondary-foreground: 10 28% 22%;
+	--muted: 36 32% 90%;
+	--muted-foreground: 15 18% 38%;
+	/* Acento damasco #FFB38A — tintes suaves */
+	--accent: 22 100% 92%;
+	--accent-foreground: 18 55% 32%;
+	--destructive: 0 72% 42%;
+	--destructive-foreground: 40 100% 98%;
+	--border: 30 28% 82%;
+	--input: 32 26% 85%;
+	--ring: 22 100% 72%;
 	--radius: 0.65rem;
 
-	/* App tokens */
+	/* Marca (referencia exacta HU) + tokens de app */
 	--app-font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto,
 		'Helvetica Neue', sans-serif;
-	--app-primary: #0d9488;
-	--app-primary-hover: #0f7668;
-	--app-primary-mid: #14b8a6;
-	--app-user-marker: #0284c7;
-	--app-surface: rgba(255, 255, 255, 0.97);
-	--app-border: #cbd5e1;
+	--pet-cream: #fff9f1;
+	--pet-sand: #f3e9dc;
+	--pet-caramel: #c06c44;
+	--pet-apricot: #ffb38a;
+	--pet-text: #3e2723;
+	--app-primary: var(--pet-caramel);
+	--app-primary-hover: color-mix(in srgb, var(--pet-caramel) 88%, #000 12%);
+	--app-primary-mid: color-mix(in srgb, var(--pet-caramel) 75%, var(--pet-apricot) 25%);
+	--app-user-marker: #2d6a8a;
+	--app-surface: color-mix(in srgb, var(--pet-sand) 96%, #fff 4%);
+	--app-border: color-mix(in srgb, var(--pet-text) 14%, var(--pet-sand) 86%);
 	--app-radius-lg: 0.9rem;
-	--app-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
-	--app-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08),
-		0 12px 32px -4px rgba(15, 23, 42, 0.1);
-	--app-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.1), 0 16px 40px rgba(15, 23, 42, 0.08);
-	--app-focus: 0 0 0 2px #fff, 0 0 0 4px hsl(var(--ring));
+	--app-shadow: 0 1px 2px rgba(62, 39, 35, 0.06), 0 8px 24px rgba(62, 39, 35, 0.06);
+	--app-shadow-md: 0 4px 6px -1px rgba(62, 39, 35, 0.07), 0 12px 32px -4px rgba(62, 39, 35, 0.08);
+	--app-shadow-hover: 0 4px 12px rgba(62, 39, 35, 0.1), 0 16px 40px rgba(62, 39, 35, 0.07);
+	--app-focus: 0 0 0 2px var(--pet-cream), 0 0 0 4px hsl(var(--ring));
+	/* Huellas #3E2723 @ 8% */
+	--app-paw-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='%233E2723' fill-opacity='0.08'%3E%3Cellipse cx='36' cy='50' rx='11' ry='8'/%3E%3Ccircle cx='23' cy='30' r='6.5'/%3E%3Ccircle cx='36' cy='24' r='6.5'/%3E%3Ccircle cx='49' cy='30' r='6.5'/%3E%3C/g%3E%3C/svg%3E");
 	--app-safe-bottom: env(safe-area-inset-bottom, 0px);
 	--app-safe-top: env(safe-area-inset-top, 0px);
 	--app-safe-left: env(safe-area-inset-left, 0px);
 	--app-safe-right: env(safe-area-inset-right, 0px);
 }
 
-/* ─── Variables semánticas (dark) ────────────────────────────────────────── */
+/* ─── Modo oscuro — Animal print dark ───────────────────────────────────── */
 .dark {
-	--background: 222 47% 8%;
-	--foreground: 210 40% 94%;
-	--card: 222 45% 11%;
-	--card-foreground: 210 40% 94%;
-	--popover: 222 45% 10%;
-	--popover-foreground: 210 40% 94%;
-	--primary: 170 60% 42%;
-	--primary-foreground: 0 0% 100%;
-	--secondary: 222 30% 18%;
-	--secondary-foreground: 210 30% 80%;
-	--muted: 222 30% 16%;
-	--muted-foreground: 215 18% 55%;
-	--accent: 168 40% 18%;
-	--accent-foreground: 168 60% 72%;
-	--destructive: 0 65% 55%;
-	--destructive-foreground: 0 0% 100%;
-	--border: 222 25% 22%;
-	--input: 222 25% 20%;
-	--ring: 170 55% 48%;
+	/* #1A0F0D · #2D1B18 · texto #F3E9DC */
+	--background: 10 30% 8%;
+	--foreground: 34 44% 91%;
+	--card: 11 28% 14%;
+	--card-foreground: 34 44% 91%;
+	--popover: 11 28% 12%;
+	--popover-foreground: 34 44% 91%;
+	/* #D67D51 caramelo vibrante · texto botón = fondo oscuro */
+	--primary: 20 60% 58%;
+	--primary-foreground: 10 30% 8%;
+	--secondary: 11 24% 20%;
+	--secondary-foreground: 34 40% 88%;
+	--muted: 11 22% 18%;
+	--muted-foreground: 32 22% 68%;
+	--accent: 22 45% 22%;
+	--accent-foreground: 22 100% 78%;
+	--destructive: 0 62% 48%;
+	--destructive-foreground: 40 100% 97%;
+	--border: 11 25% 24%;
+	--input: 11 25% 20%;
+	--ring: 22 100% 72%;
 
-	--app-surface: rgba(17, 24, 39, 0.97);
-	--app-border: #334155;
-	--app-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.3);
-	--app-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 12px 32px -4px rgba(0, 0, 0, 0.4);
-	--app-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.3);
-	--app-focus: 0 0 0 2px hsl(222 47% 8%), 0 0 0 4px hsl(var(--ring));
+	--app-surface: color-mix(in srgb, hsl(11 28% 14%) 94%, #000 6%);
+	--app-border: color-mix(in srgb, hsl(34 44% 91%) 22%, hsl(11 28% 14%) 78%);
+	--app-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
+	--app-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.45), 0 12px 32px -4px rgba(0, 0, 0, 0.45);
+	--app-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.35);
+	--app-focus: 0 0 0 2px hsl(10 30% 8%), 0 0 0 4px hsl(var(--ring));
+	--app-primary: #d67d51;
+	--app-primary-hover: color-mix(in srgb, #d67d51 88%, #fff 12%);
+	--app-primary-mid: color-mix(in srgb, #d67d51 70%, #ffb38a 30%);
+	/* Huellas damasco #FFB38A @ 5% */
+	--app-paw-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='%23FFB38A' fill-opacity='0.05'%3E%3Cellipse cx='36' cy='50' rx='11' ry='8'/%3E%3Ccircle cx='23' cy='30' r='6.5'/%3E%3Ccircle cx='36' cy='24' r='6.5'/%3E%3Ccircle cx='49' cy='30' r='6.5'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 /* ─── Tailwind v4: mapeo @theme inline ──────────────────────────────────── */
@@ -123,7 +139,7 @@
 	}
 
 	html {
-		-webkit-tap-highlight-color: hsl(170 45% 45% / 0.12);
+		-webkit-tap-highlight-color: hsl(22 100% 72% / 0.22);
 		scroll-behavior: smooth;
 	}
 
@@ -150,10 +166,10 @@
 		line-height: 1.55;
 		letter-spacing: 0.01em;
 		background-color: hsl(var(--background));
-		background-image:
-			radial-gradient(ellipse 90% 60% at 50% -15%, hsl(var(--primary) / 0.12) 0%, transparent 55%),
-			radial-gradient(ellipse 50% 50% at 100% 10%, hsl(200 85% 55% / 0.07) 0%, transparent 50%),
-			linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 100%);
+		background-image: var(--app-paw-tile),
+			radial-gradient(ellipse 120% 80% at 50% -20%, hsl(var(--primary) / 0.06) 0%, transparent 55%),
+			linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+		background-size: 72px 72px, 100% 100%, 100% 100%;
 		background-attachment: fixed;
 		padding: var(--app-safe-top) var(--app-safe-right) var(--app-safe-bottom)
 			var(--app-safe-left);

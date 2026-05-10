@@ -79,6 +79,38 @@ export function VetPetMedicalPage() {
 		return () => c.abort();
 	}, [authLoading, user, petId, location.state]);
 
+	useEffect(() => {
+		if (authLoading || !user || !hasRole(user, 'proveedor') || user.providerType !== 'veterinaria' || !petId) return;
+
+		async function reload() {
+			try {
+				const [encRes, listRes] = await Promise.all([
+					listVetClinicalEncounters(petId),
+					fetchVetPatients({})
+				]);
+				setEncounters(Array.isArray(encRes.encounters) ? encRes.encounters : []);
+				const row = Array.isArray(listRes.items)
+					? listRes.items.find((it) => String(it.petId) === String(petId))
+					: null;
+				setPendingAppointmentId(row?.pendingEncounterAppointmentId || '');
+			} catch {
+				/* ignore */
+			}
+		}
+
+		const id = setInterval(reload, 20000);
+		const onVis = () => {
+			if (document.visibilityState === 'visible') reload();
+		};
+		window.addEventListener('focus', reload);
+		document.addEventListener('visibilitychange', onVis);
+		return () => {
+			clearInterval(id);
+			window.removeEventListener('focus', reload);
+			document.removeEventListener('visibilitychange', onVis);
+		};
+	}, [authLoading, user, petId]);
+
 	if (authLoading || loading) {
 		return (
 			<div className={PAGE_CLS}>

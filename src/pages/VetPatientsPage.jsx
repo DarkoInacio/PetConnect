@@ -78,7 +78,7 @@ export function VetPatientsPage() {
 
 	useEffect(() => {
 		if (authLoading || !user || !hasRole(user, 'proveedor') || user.providerType !== 'veterinaria') return;
-		const id = setInterval(load, 45000);
+		const id = setInterval(load, 20000);
 		const onVis = () => {
 			if (document.visibilityState === 'visible') load();
 		};
@@ -134,8 +134,9 @@ export function VetPatientsPage() {
 						Mascotas atendidas
 					</h1>
 					<p className="text-sm text-muted-foreground m-0 max-w-[52ch]">
-						Pacientes con al menos una cita <strong>completada</strong> en tu clínica. La lista se actualiza sola cada
-						minuto y al volver a esta pestaña.
+						Incluye mascotas con cita <strong>completada</strong> o con <strong>ficha clínica</strong> registrada en tu
+						clínica (aunque la cita siga en confirmada). La lista se actualiza sola cada pocos segundos y al volver a
+						esta pestaña.
 					</p>
 				</div>
 			</header>

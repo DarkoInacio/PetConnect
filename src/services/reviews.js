@@ -56,13 +56,20 @@ export async function reportReview(reviewId, body) {
 
 /**
  * @param {AbortSignal} [signal]
- * @param {{ prioridad?: 'pendientes' | 'recientes' }} [opts]
+ * @param {{
+ *   prioridad?: 'pendientes' | 'recientes',
+ *   estado?: 'todos' | 'sin_respuesta' | 'con_respuesta',
+ *   rating?: number | string
+ * }} [opts]
  */
 export async function fetchProviderOwnReviews(signal, opts = {}) {
-	const { data } = await api.get('/provider/reviews', {
-		params: { prioridad: opts.prioridad ?? 'pendientes' },
-		signal
-	});
+	const params = {};
+	if (opts.prioridad) params.prioridad = opts.prioridad;
+	if (opts.estado && opts.estado !== 'todos') params.estado = opts.estado;
+	if (opts.rating != null && opts.rating !== '' && opts.rating !== 'all') {
+		params.rating = opts.rating;
+	}
+	const { data } = await api.get('/provider/reviews', { params, signal });
 	return data;
 }
 

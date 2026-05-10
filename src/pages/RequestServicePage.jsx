@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { hasRole } from '../lib/userRoles';
 import {
 	fetchProviderPublicProfile,
@@ -23,6 +24,7 @@ function toDatetimeLocalValue(d) {
 
 export function RequestServicePage() {
 	const { user, loading: authLoading } = useAuth();
+	const online = useOnlineStatus();
 	const [searchParams] = useSearchParams();
 	const providerId = searchParams.get('providerId');
 
@@ -64,6 +66,10 @@ export function RequestServicePage() {
 	const onSubmit = useCallback(
 		async (e) => {
 			e.preventDefault();
+			if (!online) {
+				setSubmitError('Sin conexión no se puede enviar la solicitud. Conéctate e intenta de nuevo.');
+				return;
+			}
 			setSubmitError('');
 			setSubmitOk('');
 			setSubmitting(true);
@@ -82,7 +88,7 @@ export function RequestServicePage() {
 				setSubmitting(false);
 			}
 		},
-		[providerId, petName, species, message, startLocal, endLocal]
+		[providerId, petName, species, message, startLocal, endLocal, online]
 	);
 
 	if (authLoading) {
@@ -162,6 +168,15 @@ export function RequestServicePage() {
 					{loadError ? (
 						<p className='rounded-xl border border-destructive/35 bg-destructive/10 px-3.5 py-3 text-sm text-destructive'>
 							{loadError}
+						</p>
+					) : null}
+
+					{!online ? (
+						<p
+							className='rounded-xl border border-amber-400/55 bg-amber-50 px-3.5 py-3 text-sm text-amber-950 dark:border-amber-600/40 dark:bg-amber-950/35 dark:text-amber-100'
+							role='alert'
+						>
+							Sin conexión: enviar una solicitud de servicio requiere internet.
 						</p>
 					) : null}
 
@@ -256,7 +271,7 @@ export function RequestServicePage() {
 						<button
 							type='submit'
 							className='inline-flex h-11 w-full items-center justify-center rounded-xl border-0 bg-primary px-5 text-sm font-bold text-primary-foreground cursor-pointer hover:bg-primary/90 transition-colors disabled:opacity-65 disabled:cursor-not-allowed'
-							disabled={submitting || !provider}
+							disabled={submitting || !provider || !online}
 						>
 							{submitting ? 'Enviando solicitud…' : 'Enviar solicitud'}
 						</button>

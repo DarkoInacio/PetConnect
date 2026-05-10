@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isAdministrator } from '../lib/userRoles';
 import { decideReviewReport, fetchReviewReports } from '../services/admin';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -50,7 +51,7 @@ export function AdminReviewReportsPage() {
 	}, [estado]);
 
 	useEffect(() => {
-		if (authLoading || !user || user.role !== 'admin') return;
+		if (authLoading || !user || !isAdministrator(user)) return;
 		let cancel = false;
 		(async () => {
 			try {
@@ -80,7 +81,7 @@ export function AdminReviewReportsPage() {
 		return <Navigate to="/login" replace state={{ from: '/admin/resenas-reportes' }} />;
 	}
 
-	if (user.role !== 'admin') {
+	if (!isAdministrator(user)) {
 		return (
 			<div className="mx-auto w-full max-w-[1200px] px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom,0px))]">
 				<Link

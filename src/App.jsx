@@ -30,6 +30,7 @@ import { VetPatientsPage } from './pages/VetPatientsPage';
 import { VetPetMedicalPage } from './pages/VetPetMedicalPage';
 import { VetEncounterDetailPage } from './pages/VetEncounterDetailPage';
 import { ChatWidget } from './components/ChatWidget';
+import { OfflineBanner } from './components/OfflineBanner';
 
 // App.css eliminado — todos los estilos migrados a Tailwind v4
 
@@ -40,6 +41,7 @@ function App() {
 				Saltar al contenido
 			</a>
 			<AppLayoutHeader />
+			<OfflineBanner />
 			<main
 				id="contenido-principal"
 				className="flex min-h-0 flex-1 flex-col w-full"

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { fetchProvidersMapData, getProviderProfilePath } from '../services/providers';
 import { ProvidersMap } from '../components/ProvidersMap';
 import { cn } from '@/lib/utils';
@@ -9,6 +10,7 @@ const DEFAULT_CENTER = { lat: -33.4489, lng: -70.6693 };
 
 export function ProvidersMapPage() {
 	const { user } = useAuth();
+	const online = useOnlineStatus();
 	const [markers, setMarkers] = useState([]);
 	const [center, setCenter] = useState(DEFAULT_CENTER);
 	const [selectedProviderId, setSelectedProviderId] = useState(null);
@@ -49,7 +51,14 @@ export function ProvidersMapPage() {
 	}, []);
 
 	useEffect(() => {
-		if (!geo.ready) return;
+		if (!geo.ready || !online) {
+			if (!online) {
+				setLoading(false);
+				setMarkers([]);
+				setError('');
+			}
+			return;
+		}
 
 		const controller = new AbortController();
 		setLoading(true);
@@ -86,7 +95,7 @@ export function ProvidersMapPage() {
 			clearTimeout(timeoutId);
 			controller.abort();
 		};
-	}, [geo, filters]);
+	}, [geo, filters, online]);
 
 	const selectedProvider = useMemo(
 		() => markers.find((m) => String(m.id) === String(selectedProviderId)) || null,
@@ -156,6 +165,14 @@ export function ProvidersMapPage() {
 						{error}
 					</p>
 				) : null}
+				{!online ? (
+					<p
+						className="rounded-xl border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-3.5 py-3 text-sm text-amber-950 dark:text-amber-100 mb-0"
+						role="status"
+					>
+						Sin conexión: el mapa y el listado de clínicas necesitan internet. Revisa tu red e intenta de nuevo.
+					</p>
+				) : null}
 			</div>
 
 			<div className="grid grid-cols-[2fr_1fr] gap-3.5 h-[calc(100dvh-8.5rem)] min-h-[520px] max-[900px]:grid-cols-1 max-[900px]:h-auto max-[560px]:min-h-[420px]">
@@ -164,17 +181,29 @@ export function ProvidersMapPage() {
 				role="region"
 				aria-label="Mapa de clínicas veterinarias"
 			>
-					<ProvidersMap
-						center={center}
-						markers={markers}
-						userPosition={
-							geo.ready && geo.lat != null && geo.lng != null
-								? { lat: geo.lat, lng: geo.lng }
-								: null
-						}
-						selectedProviderId={selectedProviderId}
-						onSelectProvider={setSelectedProviderId}
-					/>
+					{online ? (
+						<ProvidersMap
+							center={center}
+							markers={markers}
+							userPosition={
+								geo.ready && geo.lat != null && geo.lng != null
+									? { lat: geo.lat, lng: geo.lng }
+									: null
+							}
+							selectedProviderId={selectedProviderId}
+							onSelectProvider={setSelectedProviderId}
+						/>
+					) : (
+						<div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-2 bg-muted/40 px-6 text-center text-sm text-muted-foreground">
+							<p className="m-0 max-w-[36ch] font-medium text-foreground">
+								Mapa no disponible sin conexión
+							</p>
+							<p className="m-0 max-w-[40ch]">
+								Las teselas del mapa y los datos de veterinarias se cargan desde la red. Cuando vuelvas a estar
+								online, el mapa se mostrará aquí.
+							</p>
+						</div>
+					)}
 				</div>
 
 				<aside

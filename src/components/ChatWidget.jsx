@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resetChatSession, sendChatMessage } from '../services/chat';
 import { useAuth } from '../hooks/useAuth';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { cn } from '../lib/utils';
 
 const MAX_INPUT_LENGTH = 800;
@@ -49,6 +50,7 @@ const URGENCY_STYLES = {
 export function ChatWidget() {
 	const navigate = useNavigate();
 	const { user } = useAuth();
+	const online = useOnlineStatus();
 
 	const [open, setOpen] = useState(false);
 	const [input, setInput] = useState('');
@@ -102,6 +104,17 @@ export function ChatWidget() {
 	async function handleSend() {
 		const text = input.trim();
 		if (!text || loading) return;
+		if (!online) {
+			setMessages((prev) => [
+				...prev,
+				{
+					role: 'assistant',
+					content:
+						'El asistente necesita conexión a internet. Cuando estés online, podré seguir orientándote sobre el cuidado de tu mascota.'
+				}
+			]);
+			return;
+		}
 
 		const nextUser = { role: 'user', content: text };
 		const history = normalizeHistoryForApi(messages);
@@ -149,6 +162,10 @@ export function ChatWidget() {
 	}
 
 	async function startNewChat() {
+		if (!online) {
+			setMessages([{ role: 'assistant', content: 'Sin conexión no puedo iniciar una charla nueva con el servidor. Cuando vuelvas online, usa «Nueva charla».' }]);
+			return;
+		}
 		setLoading(true);
 		try {
 			const resp = await resetChatSession({ history: normalizeHistoryForApi(messages) });
@@ -193,7 +210,7 @@ export function ChatWidget() {
 								className="cursor-pointer rounded-[10px] border-none bg-white/12 px-2.5 py-1.5 text-xs text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60 hover:bg-white/20"
 								onClick={startNewChat}
 								type="button"
-								disabled={loading}
+								disabled={loading || !online}
 							>
 								Nueva charla
 							</button>
@@ -207,6 +224,16 @@ export function ChatWidget() {
 							</button>
 						</div>
 					</header>
+
+					{!online ? (
+						<div
+							className="border-b border-amber-500/40 bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100"
+							role="alert"
+						>
+							Sin conexión: el chat con Vetto requiere internet. Los mensajes no se enviarán hasta que vuelvas a estar
+							online.
+						</div>
+					) : null}
 
 					{/* Urgency indicator */}
 					<div
@@ -326,7 +353,7 @@ export function ChatWidget() {
 								onChange={(e) => setInput(e.target.value)}
 								onKeyDown={handleKeyDown}
 								placeholder="Escribe lo que te pasa… (Enter para enviar, Shift+Enter para nueva línea)"
-								disabled={loading}
+								disabled={loading || !online}
 								maxLength={MAX_INPUT_LENGTH}
 								aria-label="Mensaje para Vetto"
 								className="box-border min-h-[42px] max-h-[120px] w-full resize-none overflow-y-auto overscroll-contain rounded-xl border border-black/14 bg-transparent px-3 py-2.5 font-[inherit] text-[13px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/40 dark:border-white/12 dark:text-slate-100 dark:placeholder:text-slate-500"
@@ -345,7 +372,7 @@ export function ChatWidget() {
 						<button
 							className="min-w-[72px] flex-shrink-0 self-end cursor-pointer rounded-xl border-none bg-slate-900 px-3 py-2.5 text-[13px] whitespace-nowrap text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600"
 							type="submit"
-							disabled={loading || !input.trim()}
+							disabled={loading || !input.trim() || !online}
 						>
 							{loading ? 'Enviando…' : 'Enviar'}
 						</button>

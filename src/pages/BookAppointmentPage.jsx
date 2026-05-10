@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { createSlotAppointment, fetchAvailableSlots } from '../services/appointments';
 import { fetchProviderPublicProfile, getProviderProfilePath } from '../services/providers';
 import { listPets } from '../services/pets';
@@ -189,6 +190,7 @@ function ErrorMsg({ children, className }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export function BookAppointmentPage() {
 	const { user, loading: authLoading } = useAuth();
+	const online = useOnlineStatus();
 	const [searchParams] = useSearchParams();
 	const providerId = searchParams.get('providerId');
 
@@ -506,6 +508,16 @@ export function BookAppointmentPage() {
 				<ChevronLeft size={16} />
 				{profileLink ? 'Volver a la ficha' : 'Volver al mapa'}
 			</Link>
+
+			{!online ? (
+				<div
+					className="mb-4 rounded-xl border border-amber-400/55 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-600/40 dark:bg-amber-950/35 dark:text-amber-100"
+					role="alert"
+				>
+					Sin conexión: para ver horarios disponibles y confirmar una cita necesitas internet. Conéctate e intenta de
+					nuevo.
+				</div>
+			) : null}
 
 			{/* Page header */}
 			<header className="mb-7">
@@ -1161,7 +1173,7 @@ export function BookAppointmentPage() {
 									<Button
 										className="h-11 text-sm font-bold flex-1"
 										onClick={onConfirm}
-										disabled={submitting || !selectedSlot}
+										disabled={submitting || !selectedSlot || !online}
 									>
 										{submitting ? (
 											<span className="flex items-center gap-2">
