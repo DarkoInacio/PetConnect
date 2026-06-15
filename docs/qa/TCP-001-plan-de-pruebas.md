@@ -5,7 +5,7 @@
 | Campo | Valor |
 |-------|-------|
 | **Plan ID** | TCP-001 |
-| **Versión** | 1.1 (actualizada con estado de cobertura Jun 2026) |
+| **Versión** | 1.2 (seed QA, Jest ampliado, Playwright E2E — Jun 2026) |
 | **Preparado por** | Equipo QA PetConnect |
 | **Fecha** | Junio 2026 |
 | **Repositorio Backend** | [DarkoInacio/PetConnectBackend](https://github.com/DarkoInacio/PetConnectBackend) |
@@ -22,17 +22,17 @@
 
 | TL;DR |
 |-------|
-| Este plan define alcance, cronograma, estrategia, ambiente y casos de prueba para el release mayor v1.0 de PetConnect. **A junio 2026 la automatización base está implementada** (130 tests Jest + Newman smoke en backend; 38 tests Vitest en frontend), pero **no se cumplen aún los criterios de salida TCP-001** para un Go/No-Go de producción: faltan Playwright E2E, seed QA completo, UAT, Lighthouse PWA documentado, pruebas de email/cron y cobertura ≥70% en servicios. |
+| Este plan define alcance, cronograma, estrategia, ambiente y casos de prueba para el release mayor v1.0 de PetConnect. **A junio 2026 la automatización ampliada está implementada** (150 tests Jest + Newman smoke; 38 Vitest + 6 Playwright E2E; `seed-qa.js`), pero **aún no se cumplen todos los criterios de salida TCP-001** para Go/No-Go: faltan UAT firmado, Lighthouse PWA archivado ≥90, ejecución Postman completa registrada, E2E de reserva/ficha con API real, y cobertura ≥70% en servicios. |
 
 ### Veredicto rápido (Jun 2026)
 
 | Criterio TCP-001 (Sección 5.5) | ¿Cumple? |
 |-------------------------------|----------|
-| 100% casos P1 ejecutados y PASS | **No** — muchos P1 solo en Postman manual o parcialmente en Jest |
+| 100% casos P1 ejecutados y PASS | **Parcial** — P1 API mayormente en Jest/Newman; UI P1 (reservar, ficha, admin) sin E2E completo |
 | ≥ 90% casos P2 PASS | **No** — sin ejecución formal registrada |
 | 0 defectos Críticos/Altos abiertos | **N/A** — requiere ciclo de ejecución + tracking en Issues |
-| Suite regresión en CI | **Sí** — backend Jest + Newman; frontend Vitest |
-| Playwright / UAT / Lighthouse | **No** |
+| Suite regresión en CI | **Sí** — backend Jest + Newman; frontend Vitest + Playwright |
+| Playwright / UAT / Lighthouse | **Parcial** — 6 E2E P1 con mocks; UAT y Lighthouse sin archivo de evidencia |
 
 ---
 
@@ -88,7 +88,7 @@
 | Regresión + cierre | Re-run fallidos, informe | 2 días |
 | Go / No-Go | QA Lead + PO | 1 día |
 
-**Estado Jun 2026:** fases de automatización base (Jest, Newman, Vitest) **completadas en repo**; fases Playwright, UAT, informe de cierre **pendientes**.
+**Estado Jun 2026:** fases Jest, Newman, Vitest y **Playwright base** completadas en repo; fases UAT, informe de cierre y **evidencia Lighthouse** pendientes.
 
 ---
 
@@ -98,12 +98,12 @@ Objetivos y métricas según plantilla TCP-001 (Sección 3 del documento guía):
 
 | Métrica | Meta TCP-001 | Estado actual (aprox.) |
 |---------|--------------|------------------------|
-| Tests backend automatizados | Suite regresión | **130** Jest + **14** Newman smoke |
-| Tests frontend automatizados | Suite regresión UI lógica | **38** Vitest |
-| Cobertura código servicios backend | ≥ 70% | **Parcial** (~40% controllers críticos) |
-| Playwright E2E | Flujos P1 | **0** |
-| Lighthouse PWA ≥ 90 | Documentado | **No ejecutado / no archivado** |
-| Tasa ejecución casos TCP-001 | ≥ 95% | **~35–45%** vía automatización |
+| Tests backend automatizados | Suite regresión | **150** Jest + **14** Newman smoke |
+| Tests frontend automatizados | Suite regresión UI lógica | **38** Vitest + **6** Playwright E2E |
+| Cobertura código servicios backend | ≥ 70% | **Parcial** (~45% controllers críticos) |
+| Playwright E2E | Flujos P1 | **6** (login, mascotas, mapa, offline, recuperar clave) |
+| Lighthouse PWA ≥ 90 | Documentado + archivado | **Procedimiento en §6.4** · sin reporte guardado |
+| Tasa ejecución casos TCP-001 | ≥ 95% | **~65–70%** vía automatización |
 
 ---
 
@@ -115,10 +115,10 @@ Objetivos y métricas según plantilla TCP-001 (Sección 3 del documento guía):
 | Colección Postman | ✅ | `PetConnectBackend/postman/` |
 | Newman smoke CI | ✅ | `.github/workflows/backend-tests.yml` |
 | Seed smoke (CI/local) | ✅ | `scripts/seed-smoke.js` |
-| Seed QA completo (`seed-qa.js`) | ⬜ Pendiente | Plan menciona `scripts/seed-qa.js` — **no existe aún** |
-| Jest backend | ✅ | `npm test` |
-| Vitest frontend | ✅ | `npm test` |
-| Playwright | ⬜ Pendiente | — |
+| Seed QA completo (`seed-qa.js`) | ✅ | `scripts/seed-qa.js` → `postman/PetConnect-QA.postman_environment.json` |
+| Jest backend | ✅ | `npm test` (150) |
+| Vitest frontend | ✅ | `npm test` (38) |
+| Playwright | ✅ Base P1 | `npm run test:e2e` (6) · CI `frontend-tests.yml` |
 | Informe cierre / UAT firmado | ⬜ Pendiente | — |
 | Log ejecución TestRail/Sheet | ⬜ Pendiente | — |
 
@@ -134,8 +134,8 @@ Objetivos y métricas según plantilla TCP-001 (Sección 3 del documento guía):
 | Smoke API pre-deploy | Newman (carpeta Smoke) | Auto | ✅ Backend |
 | Unitarias / componentes FE | Vitest + Testing Library | Auto | ✅ Frontend |
 | API exploración / regresión manual | Postman (todas las carpetas) | Manual | — |
-| E2E navegador | Playwright (planificado) | Auto | ⬜ |
-| PWA / Lighthouse | Chrome DevTools | Manual | ⬜ |
+| E2E navegador | Playwright (`e2e/`, mocks API) | Auto | ✅ Frontend |
+| PWA / Lighthouse | Chrome DevTools + procedimiento §6.4 | Manual | ⬜ Evidencia |
 | Seguridad | Postman + Jest (401/403) | Mixto | Parcial |
 | Email / cron | Mailtrap + manual / mock en Jest | Manual | Mock en tests |
 | UAT | Usuarios reales | Manual | — |
@@ -169,9 +169,20 @@ Objetivos y métricas según plantilla TCP-001 (Sección 3 del documento guía):
 | Script | Propósito | Estado |
 |--------|-----------|--------|
 | `scripts/seed-smoke.js` | Dueño `smoke.qa@test.com`, vet `vet@prueba.cl`, mascota, slot | ✅ Idempotente |
-| `scripts/seed-qa.js` (planificado) | Admin, 2 dueños, paseador, cuidador en revisión, encuentro con adjunto | ⬜ **Crear** |
+| `scripts/seed-qa.js` | Admin, dueño1/2, vet, paseador, cuidador `en_revision`, mascotas Firulais/Mishi, cita completed, encuentro clínico | ✅ Idempotente |
 
-Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en anexo al final.
+**Credenciales seed QA (por defecto):** password `QaTest2026!` para todos los usuarios (`admin@petconnect.test`, `dueno1@petconnect.test`, `vet@petconnect.test`, etc.). Regenerar environment: `npm run seed:qa` en backend.
+
+### 6.4 Auditoría Lighthouse PWA (manual, antes de Go/No-Go)
+
+1. `npm run build && npm run preview` en frontend (o URL Vercel preview).
+2. Chrome → DevTools → Lighthouse → categorías **Performance**, **PWA**, **Accessibility**.
+3. Modo **Mobile**, throttling simulado.
+4. Guardar HTML/JSON en `docs/qa/evidence/lighthouse-YYYY-MM-DD/` (crear carpeta al ejecutar).
+5. **Criterio TCP-001:** PWA ≥ 90; Performance ≥ 80 (orientativo).
+6. Verificar: manifest, `sw.js`, iconos 192/512, `display: standalone`, banner offline (CP-15-04 cubierto en Vitest + Playwright).
+
+---
 
 ### 6.3 Smoke de ambiente (antes de cada ciclo)
 
@@ -181,7 +192,7 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | Login dueño smoke | `POST /api/auth/login` | 200 + token | Newman SMK-002 |
 | Flujo cita smoke | slots → crear cita | 201 | Newman SMK-007 |
 | Frontend build | `npm run build` | `sw.js` + manifest | Manual |
-| Suite CI | push a `main` | Jest + Newman + Vitest green | ✅ |
+| Suite CI | push a `main` | Jest + Newman + Vitest + Playwright green | ✅ |
 
 ---
 
@@ -217,7 +228,8 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | CP-01-11 | Login sin email/password | Body vacío | 400 | A | ✅ Jest |
 | CP-01-12 | Register rol no permitido | role distinto de dueno | 403 | A | ✅ Jest |
 | CP-01-13 | UI registro dueño | `/registro` formulario | Redirección post-éxito | A | ⬜ Playwright |
-| CP-01-14 | UI recuperar clave | `/recuperar-clave` | Mensaje éxito | A | ✅ Vitest ForgotPassword |
+| CP-01-14 | UI recuperar clave | `/recuperar-clave` | Mensaje éxito | A | ✅ Vitest + Playwright E2E |
+| CP-01-15 | UI login dueño | `/login` → mapa | Sesión activa | A | ✅ Playwright E2E |
 
 ---
 
@@ -249,7 +261,7 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | CP-03-09 | Dueño ajeno | GET con token incorrecto | 403/404 | A | ✅ Jest |
 | CP-03-10 | Sin autenticación | POST/GET sin JWT | 401 | A | ✅ Jest |
 | CP-03-11 | Listar para agenda | `GET /api/pets?forAgenda=1` | 200 | M | ✅ Jest |
-| CP-03-12 | UI CRUD mascotas | `/mis-mascotas`, formulario | Flujo completo | A | ⬜ Playwright |
+| CP-03-12 | UI listar mascotas | `/cuenta/mascotas` | Lista tras login | A | ✅ Playwright E2E |
 | CP-03-13 | Servicio FE createPet | `pets.js` FormData | Llama POST /pets | M | ✅ Vitest `pets.test` |
 
 ---
@@ -283,13 +295,13 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | CP-05-02 | Buscar por tipo | `GET /api/proveedores/buscar?tipo=veterinaria` | 200 | A | ✅ Jest + Newman |
 | CP-05-03 | Búsqueda geo radio | `GET /api/proveedores/buscar?lat&lng&radioKm` | 200 filtrado | A | 🟡 Jest sin assert distancia · 📋 Postman |
 | CP-05-04 | Mapa marcadores | `GET /api/proveedores/mapa?lat&lng&radioKm` | 200 markers | A | ✅ Jest + Newman |
-| CP-05-05 | Perfil público por ID | `GET /api/proveedores/:id/perfil` | 200 | M | 📋 Postman · ⬜ Jest |
-| CP-05-06 | Perfil por slug | `GET /api/proveedores/perfil/:tipo/:slug` | 200 | M | 📋 Postman · ⬜ Jest |
+| CP-05-05 | Perfil público por ID | `GET /api/proveedores/:id/perfil` | 200 | M | ✅ Jest |
+| CP-05-06 | Perfil por slug | `GET /api/proveedores/perfil/:tipo/:slug` | 200 | M | ✅ Jest |
 | CP-05-07 | Proveedor actualiza perfil | `PUT /api/proveedores/mi-perfil` | 200 | A | 🟡 Jest 401/403 · ⬜ feliz |
 | CP-05-08 | Solicitar paseador | `POST /api/proveedores/solicitar-servicio` | 201 | A | ✅ Jest |
 | CP-05-09 | Solicitar a vet (no paseador) | providerType veterinaria | 400 | A | ✅ Jest |
 | CP-05-10 | Tipo inválido en listado | `?tipo=dragon` | 400 | A | ✅ Jest |
-| CP-05-11 | UI mapa explorar | `/` y `/explorar` | Mapa + filtros | A | ⬜ Playwright · ⬜ geo manual |
+| CP-05-11 | UI mapa explorar | `/` y `/explorar` | Mapa + menú cuenta | A | 🟡 Playwright navegación · ⬜ geo manual |
 | CP-05-12 | UI perfil público proveedor | `/proveedor/:id` | Datos públicos | M | ⬜ Playwright |
 
 ---
@@ -317,10 +329,10 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | CP-08-03 | Slot ocupado | Mismo slot dos veces | 409 | A | ✅ Jest |
 | CP-08-04 | Confirmar (proveedor) | `PATCH .../provider/confirm` | 200 confirmed | A | ✅ Jest |
 | CP-08-05 | Completar vet | `PATCH .../provider/complete-vet` | 200 completed | A | ✅ Jest |
-| CP-08-06 | Completar paseador | `PATCH .../provider/complete-walker` | 200 | A | 📋 Postman · ⬜ Jest |
+| CP-08-06 | Completar paseador | `PATCH .../provider/complete-walker` | 200 | A | ✅ Jest |
 | CP-08-07 | Completar visita cuidador | `PATCH .../provider/complete-visit` | 200 | M | 📋 Postman · ⬜ Jest |
 | CP-08-08 | Cancelar dueño | `PATCH .../cancel` | 200 | A | ✅ Jest |
-| CP-08-09 | Cancelar proveedor | `PATCH .../provider/cancel` | 200 | M | 📋 Postman · ⬜ Jest |
+| CP-08-09 | Cancelar proveedor | `PATCH .../provider/cancel` | 200 | M | ✅ Jest |
 | CP-08-10 | Notas internas vet | `PATCH .../provider/internal-notes` | 200 | M | 📋 Postman · ⬜ Jest |
 | CP-08-11 | Mis citas dueño | `GET /api/appointments/mine` | 200 | A | ✅ Jest |
 | CP-08-12 | No-dueño crea cita | Token proveedor | 403 | A | ✅ Jest |
@@ -344,9 +356,9 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 
 | ID | Caso | Pasos | Esperado | P | Cobertura |
 |----|------|-------|----------|---|-----------|
-| CP-10-01 | Elegibilidad reseña | `GET /api/appointments/:id/review-eligibility` | 200 eligible | A | 📋 Postman · ⬜ Jest |
+| CP-10-01 | Elegibilidad reseña | `GET /api/appointments/:id/review-eligibility` | 200 eligible | A | ✅ Jest |
 | CP-10-02 | Crear reseña post-cita | `POST /api/appointments/:id/reviews` | 201 | A | ✅ Jest |
-| CP-10-03 | Doble reseña misma cita | Segundo POST | 409/400 | A | ⬜ Jest |
+| CP-10-03 | Doble reseña misma cita | Segundo POST | 409/400 | A | ✅ Jest |
 | CP-10-04 | Editar reseña propia | `PATCH /api/reviews/:reviewId` | 200 | M | ✅ Jest |
 | CP-10-05 | Listar reseñas proveedor | `GET /api/proveedores/:id/reviews` | 200 | A | ✅ Jest |
 | CP-10-06 | Reportar reseña | `POST /api/reviews/:id/report` | 201 | M | ✅ Jest |
@@ -379,9 +391,9 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | ID | Caso | Pasos | Esperado | P | Cobertura |
 |----|------|-------|----------|---|-----------|
 | CP-13-01 | Pendientes | `GET /api/admin/providers/pending` | 200 | A | ✅ Jest |
-| CP-13-02 | Aprobar | `PATCH /api/admin/providers/:id/approve` | 200 aprobado | A | 📋 Postman · ⬜ Jest |
-| CP-13-03 | Rechazar | `PATCH .../reject` | 200 rechazado | A | 📋 Postman · ⬜ Jest |
-| CP-13-04 | Suspender | `PATCH .../suspend` | 200 suspendido | A | 📋 Postman · ⬜ Jest |
+| CP-13-02 | Aprobar | `PATCH /api/admin/providers/:id/approve` | 200 aprobado | A | ✅ Jest |
+| CP-13-03 | Rechazar | `PATCH .../reject` | 200 rechazado | A | ✅ Jest |
+| CP-13-04 | Suspender | `PATCH .../suspend` | 200 suspendido | A | ✅ Jest |
 | CP-13-05 | Reactivar | `PATCH .../reactivate` | 200 aprobado | M | 📋 Postman · ⬜ Jest |
 | CP-13-06 | Activos / suspendidos list | GET active/suspended | 200 | M | 📋 Postman · ⬜ Jest |
 | CP-13-07 | Audit logs | `GET /api/admin/audit-logs` | 200 | M | ✅ Jest |
@@ -414,10 +426,10 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 | CP-15-01 | SW registrado prod | build + preview, DevTools | SW activo | M | ⬜ Manual |
 | CP-15-02 | Manifest válido | Lighthouse PWA | name, icons 192/512 | M | ⬜ Manual |
 | CP-15-03 | Instalable | Chrome “Instalar app” | standalone | M | ⬜ Manual |
-| CP-15-04 | Banner offline global | Network offline | OfflineBanner | M | ✅ Vitest |
+| CP-15-04 | Banner offline global | Network offline | OfflineBanner | M | ✅ Vitest + Playwright E2E |
 | CP-15-05 | Shell offline | Offline tras 1ª visita | HTML/JS/CSS cargan | M | ⬜ Manual |
-| CP-15-06 | Mapa sin red | `/` offline | Mensaje sin mapa | M | ⬜ Manual |
-| CP-15-07 | Lighthouse score ≥ 90 | Mobile audit | PWA + Performance | M | ⬜ Manual |
+| CP-15-06 | Mapa sin red | `/` offline | Mensaje sin mapa | M | 🟡 Playwright offline (banner + mapa) |
+| CP-15-07 | Lighthouse score ≥ 90 | Mobile audit | PWA + Performance | M | 📋 Procedimiento §6.4 · ⬜ evidencia |
 | CP-15-08 | AuthProvider sesión | Token localStorage | Restaura usuario | A | ✅ Vitest |
 
 ---
@@ -426,9 +438,9 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 
 | ID | Caso | Pasos | Esperado | P | Cobertura |
 |----|------|-------|----------|---|-----------|
-| CP-16-01 | Listar servicios vet | `GET /api/provider/clinic-services` | 200 | A | 📋 Postman · ⬜ Jest |
-| CP-16-02 | Crear servicio | `POST /api/provider/clinic-services` | 201 | A | 📋 Postman · ⬜ Jest |
-| CP-16-03 | Actualizar servicio | `PATCH .../:id` | 200 | M | 📋 Postman · ⬜ Jest |
+| CP-16-01 | Listar servicios vet | `GET /api/provider/clinic-services` | 200 | A | ✅ Jest |
+| CP-16-02 | Crear servicio | `POST /api/provider/clinic-services` | 201 | A | ✅ Jest |
+| CP-16-03 | Actualizar servicio | `PATCH .../:id` | 200 | M | ✅ Jest |
 | CP-16-04 | Slots requieren clinicServiceId | GET slots multi-servicio | 400 sin id | A | ✅ Jest appointments |
 
 ---
@@ -444,33 +456,33 @@ Datos mínimos del seed QA planificado (Sección 6.2 original): ver tabla en ane
 
 ---
 
-## 8. Matriz de cobertura automatizada (Jun 2026)
+## 8. Matriz de cobertura automatizada (Jun 2026 — v1.2)
 
 | Módulo | Casos TCP-001 | ✅ Auto | 🟡 Parcial | ⬜ Pendiente |
 |--------|---------------|---------|------------|--------------|
-| M-01 Auth | 14 | 10 | 2 | 2 |
+| M-01 Auth | 15 | 11 | 2 | 2 |
 | M-02 Perfil | 6 | 4 | 0 | 2 |
-| M-03 Mascotas | 13 | 9 | 1 | 3 |
+| M-03 Mascotas | 13 | 10 | 0 | 3 |
 | M-04 Ficha/PDF | 12 | 8 | 1 | 3 |
-| M-05/06 Proveedores | 12 | 6 | 2 | 4 |
+| M-05/06 Proveedores | 12 | 8 | 2 | 2 |
 | M-07 Agenda | 7 | 2 | 0 | 5 |
-| M-08 Citas | 14 | 9 | 0 | 5 |
+| M-08 Citas | 14 | 11 | 0 | 3 |
 | M-09 Bookings | 4 | 3 | 0 | 1 |
-| M-10 Reseñas | 10 | 6 | 0 | 4 |
+| M-10 Reseñas | 10 | 8 | 0 | 2 |
 | M-11 Chat | 8 | 5 | 2 | 1 |
-| M-13 Admin | 11 | 2 | 0 | 9 |
+| M-13 Admin | 11 | 5 | 0 | 6 |
 | M-14 Seguridad | 8 | 3 | 1 | 4 |
-| M-15 PWA/UI | 8 | 2 | 0 | 6 |
-| M-16 Clinic services | 4 | 1 | 0 | 3 |
+| M-15 PWA/UI | 8 | 3 | 2 | 3 |
+| M-16 Clinic services | 4 | 4 | 0 | 0 |
 | M-17 Email/cron | 4 | 0 | 1 | 3 |
-| **Total aprox.** | **~135** | **~70 (52%)** | **~10 (7%)** | **~55 (41%)** |
+| **Total aprox.** | **~136** | **~85 (63%)** | **~10 (7%)** | **~41 (30%)** |
 
 ### Artefactos CI
 
 | Repo | Workflow | Jobs |
 |------|----------|------|
-| PetConnectBackend | `backend-tests.yml` | Jest (130) + Newman Smoke (14 requests) |
-| PetConnect | `frontend-tests.yml` | Vitest (38) |
+| PetConnectBackend | `backend-tests.yml` | Jest (150) + Newman Smoke (14 requests) |
+| PetConnect | `frontend-tests.yml` | Vitest (38) + Playwright E2E (6) |
 
 ---
 
@@ -486,9 +498,9 @@ Sin cambios respecto a TCP-001 v1.0: QA Lead, Tester Backend, Tester Frontend, D
 |--------|-------|---------|------------|--------|
 | OpenAI quota QA | Media | Alto | Mock en Jest; key QA limitada | ✅ Mock |
 | Render cold start | Media | Medio | Warm-up; smoke CI con Mongo local | ✅ Mitigado en CI |
-| Seed incompleto | Baja | Alto | Implementar `seed-qa.js` | ⬜ Pendiente |
+| Seed incompleto | Baja | Alto | `seed-qa.js` + environment Postman | ✅ Mitigado |
 | Plan con rutas obsoletas | Alta | Medio | Este doc corrige rutas reales | ✅ |
-| Sin E2E UI | Alta | Alto | Roadmap Playwright P1 | ⬜ Pendiente |
+| Sin E2E UI completo | Media | Alto | Playwright P1 base; ampliar reserva/ficha con API | 🟡 En progreso |
 
 ---
 
@@ -505,23 +517,25 @@ Sin cambios respecto a TCP-001 v1.0: QA Lead, Tester Backend, Tester Frontend, D
 | ID / Título | TCP-001 / PetConnect v1.0 |
 | Alcance In | Auth · Mascotas · Ficha · Proveedores · Citas · Bookings · Reseñas · Chat · Admin · PWA |
 | Objetivo release | Go/No-Go con 100% P1 PASS |
-| Automatización lista | Jest 130 · Newman 14 · Vitest 38 |
-| Brecha principal | Playwright · seed-qa · Admin Jest · Lighthouse · UAT |
-| Próximo hito | Ejecutar Postman completo + crear `seed-qa.js` + 5 specs Playwright P1 |
+| Automatización lista | Jest 150 · Newman 14 · Vitest 38 · Playwright 6 |
+| Brecha principal | E2E reserva/ficha con API · Postman completo registrado · Lighthouse evidencia · UAT |
+| Próximo hito | Ejecutar Postman QA con `seed:qa` · archivar Lighthouse · UAT dueño/vet |
 
 ---
 
-## Anexo A — Datos seed QA planificados (`seed-qa.js`)
+## Anexo A — Datos seed QA (`seed-qa.js`) ✅
 
 | Entidad | Datos |
 |---------|-------|
-| Admin | admin@petconnect.test |
-| Dueño 1 | dueno1@petconnect.test · 2 mascotas · 1 cita completed |
-| Dueño 2 | dueno2@petconnect.test · sin mascotas |
-| Vet | vet@petconnect.test · aprobado · Santiago · slots |
-| Paseador | paseador@petconnect.test · aprobado |
-| Cuidador | cuidador@petconnect.test · en_revision |
-| Encuentro | 1 en Firulais con adjunto de prueba |
+| Admin | `admin@petconnect.test` |
+| Dueño 1 | `dueno1@petconnect.test` · mascotas Firulais + Mishi · cita `completed` |
+| Dueño 2 | `dueno2@petconnect.test` · sin mascotas |
+| Vet | `vet@petconnect.test` · aprobado · slot mañana 10:00 Chile |
+| Paseador | `paseador@petconnect.test` · aprobado |
+| Cuidador | `cuidador@petconnect.test` · `en_revision` |
+| Encuentro | 1 en Firulais con adjunto PDF de prueba |
+| Password (todos) | `QaTest2026!` (override: `QA_DEFAULT_PASSWORD`) |
+| Environment | `postman/PetConnect-QA.postman_environment.json` (generado) |
 
 ---
 
@@ -535,7 +549,9 @@ Sin cambios respecto a TCP-001 v1.0: QA Lead, Tester Backend, Tester Frontend, D
 | Smoke casos texto | `PetConnectBackend/test-cases/smoke-tests.md` (si existe) |
 | Tests backend | `PetConnectBackend/src/**/*.test.js` |
 | Tests frontend | `PetConnect/src/**/*.test.{js,jsx}` |
+| E2E Playwright | `PetConnect/e2e/*.spec.js` |
+| Seed QA | `PetConnectBackend/scripts/seed-qa.js` |
 
 ---
 
-*Fin del documento · PetConnect TCP-001 v1.1 · Junio 2026*
+*Fin del documento · PetConnect TCP-001 v1.2 · Junio 2026*
